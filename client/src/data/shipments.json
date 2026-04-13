@@ -1,0 +1,37 @@
+[
+  {
+    "id": "SHIP-001",
+    "name": "Mumbai - Delhi Express",
+    "location": [19.0760, 72.8777],
+    "status": "On Time",
+    "delay": 0
+  },
+  {
+    "id": "SHIP-002",
+    "name": "Bangalore Tech-Hub Supply",
+    "location": [12.9716, 77.5946],
+    "status": "At Risk",
+    "delay": 45
+  },
+  {
+    "id": "SHIP-003",
+    "name": "Kolkata Port Logistics",
+    "location": [22.5726, 88.3639],
+    "status": "Delayed",
+    "delay": 120
+  },
+  {
+    "id": "SHIP-004",
+    "name": "Chennai Auto Parts",
+    "location": [13.0827, 80.2707],
+    "status": "On Time",
+    "delay": 0
+  },
+  {
+    "id": "SHIP-005",
+    "name": "Ahmedabad Textile Route",
+    "location": [23.0225, 72.5714],
+    "status": "On Time",
+    "delay": 5
+  }
+]

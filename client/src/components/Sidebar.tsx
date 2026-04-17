@@ -13,7 +13,7 @@ const Sidebar = () => {
       {/* Header */}
       <div className="p-6 border-b border-slate-700">
         <h2 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
-          LOGISTICS OS
+          AETHERLOG
         </h2>
         <p className="text-xs text-slate-400 mt-1 uppercase tracking-wider">India Fleet Monitoring</p>
       </div>

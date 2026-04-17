@@ -4,34 +4,55 @@
     "name": "Mumbai - Delhi Express",
     "location": [19.0760, 72.8777],
     "status": "On Time",
-    "delay": 0
+    "delay": 0,
+    "weight": 14.2,
+    "maxWeight": 20,
+    "terrain": "Highway",
+    "route": [[19.0760, 72.8777], [21.1458, 79.0882], [28.7041, 77.1025]]
   },
   {
     "id": "SHIP-002",
     "name": "Bangalore Tech-Hub Supply",
     "location": [12.9716, 77.5946],
     "status": "At Risk",
-    "delay": 45
+    "delay": 45,
+    "weight": 18.5,
+    "maxWeight": 20,
+    "terrain": "Mountainous",
+    "route": [[12.9716, 77.5946], [15.3173, 75.7139], [18.5204, 73.8567]],
+    "features": ["4WD", "High Torque"]
   },
   {
     "id": "SHIP-003",
     "name": "Kolkata Port Logistics",
     "location": [22.5726, 88.3639],
     "status": "Delayed",
-    "delay": 120
+    "delay": 120,
+    "weight": 22.0,
+    "maxWeight": 25,
+    "terrain": "Urban",
+    "route": [[22.5726, 88.3639], [23.7957, 86.4304], [25.5941, 85.1376]]
   },
   {
     "id": "SHIP-004",
     "name": "Chennai Auto Parts",
     "location": [13.0827, 80.2707],
     "status": "On Time",
-    "delay": 0
+    "delay": 0,
+    "weight": 10.5,
+    "maxWeight": 15,
+    "terrain": "Highway",
+    "route": [[13.0827, 80.2707], [15.8281, 78.0373], [17.3850, 78.4867]]
   },
   {
     "id": "SHIP-005",
     "name": "Ahmedabad Textile Route",
     "location": [23.0225, 72.5714],
     "status": "On Time",
-    "delay": 5
+    "delay": 5,
+    "weight": 16.0,
+    "maxWeight": 20,
+    "terrain": "Flat",
+    "route": [[23.0225, 72.5714], [24.5854, 73.7125], [26.9124, 75.7873]]
   }
 ]

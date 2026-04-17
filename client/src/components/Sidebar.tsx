@@ -1,12 +1,31 @@
 import React from 'react';
-import { Truck, AlertTriangle, Clock, Zap } from 'lucide-react';
+import { Truck, AlertTriangle, Clock, Zap, CloudLightning, Car, Anchor } from 'lucide-react';
 
-const Sidebar = () => {
+interface SidebarProps {
+  setFocusedLocation: (loc: [number, number] | null) => void;
+  isScanning: boolean;
+  setIsScanning: (scanning: boolean) => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIsScanning }) => {
   const alerts = [
-    { id: 1, message: "Heavy Rain near Vijayawada - Potential 2-hour delay.", type: "warning" },
-    { id: 2, message: "NH48 Traffic Bottleneck near Pune - Slow current speed.", type: "info" },
-    { id: 3, message: "Driver Break Overdue: SHIP-002", type: "critical" },
+    { id: 1, message: "Heavy Rain near Vijayawada - Potential 2-hour delay.", type: "warning", location: [16.5062, 80.6480] as [number, number], icon: <CloudLightning className="w-4 h-4 text-blue-400" /> },
+    { id: 2, message: "NH48 Traffic Bottleneck near Pune - Slow current speed.", type: "info", location: [18.5204, 73.8567] as [number, number], icon: <Car className="w-4 h-4 text-amber-400" /> },
+    { id: 3, message: "Port Bottleneck at Kolkata: SHIP-003 delayed", type: "critical", location: [22.5726, 88.3639] as [number, number], icon: <Anchor className="w-4 h-4 text-red-500" /> },
   ];
+
+  const handleAlertClick = (location: [number, number]) => {
+    setFocusedLocation(location);
+  };
+
+  const handleRunOptimization = () => {
+    if (isScanning) return;
+    setIsScanning(true);
+    // Simulate API call for optimization
+    setTimeout(() => {
+      setIsScanning(false);
+    }, 2000);
+  };
 
   return (
     <aside className="w-80 h-screen bg-slate-900 text-slate-100 flex flex-col border-r border-slate-700 shadow-2xl overflow-hidden">
@@ -51,17 +70,40 @@ const Sidebar = () => {
           Disruption Feed
         </h3>
         {alerts.map((alert) => (
-          <div key={alert.id} className="p-3 bg-slate-800/50 rounded-lg border-l-4 border-l-amber-500 text-sm hover:bg-slate-800 transition-all cursor-pointer">
-            {alert.message}
+          <div 
+            key={alert.id} 
+            onClick={() => handleAlertClick(alert.location)}
+            className="p-3 bg-slate-800/50 rounded-lg border-l-4 border-l-amber-500 text-sm hover:bg-slate-800 transition-all cursor-pointer flex items-start gap-3"
+          >
+            <div className="mt-0.5 shrink-0">
+              {alert.icon}
+            </div>
+            <div className="text-slate-300 leading-snug">
+              {alert.message}
+            </div>
           </div>
         ))}
       </div>
 
       {/* Action Button */}
       <div className="p-4 bg-slate-800/80 backdrop-blur-md">
-        <button className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-900/40 transform active:scale-95 group">
-          <Zap className="w-4 h-4 group-hover:animate-pulse" />
-          Run AI Re-routing
+        <button 
+          onClick={handleRunOptimization}
+          disabled={isScanning}
+          className={`w-full ${isScanning ? 'bg-indigo-600 animate-pulse' : 'bg-blue-600 hover:bg-blue-500'} text-white font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-900/40 transform active:scale-95 group relative overflow-hidden`}
+        >
+          {isScanning ? (
+            <>
+              <div className="absolute inset-0 bg-white/20 animate-[shimmer_1s_infinite] translate-x-[-100%]" style={{ backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)' }} />
+              <Clock className="w-4 h-4 animate-spin" />
+              Scanning Network...
+            </>
+          ) : (
+            <>
+              <Zap className="w-4 h-4 group-hover:animate-pulse" />
+              Run AI Re-routing
+            </>
+          )}
         </button>
       </div>
     </aside>

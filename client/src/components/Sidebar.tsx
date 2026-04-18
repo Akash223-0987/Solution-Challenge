@@ -7,6 +7,20 @@ interface SidebarProps {
   setIsScanning: (scanning: boolean) => void;
 }
 
+// Real Indian logistics routes between major cities
+const INDIA_ROUTES = [
+  { origin: 'Mumbai', destination: 'Delhi',        start: [19.0760, 72.8777], end: [28.6139, 77.2090], via: [21.1458, 75.7935], terrain: 'Highway',      weight: () => 12 + Math.random() * 10 },
+  { origin: 'Mumbai', destination: 'Pune',         start: [19.0760, 72.8777], end: [18.5204, 73.8567], via: [18.7645, 73.4047], terrain: 'Mountainous', weight: () => 16 + Math.random() * 12 },
+  { origin: 'Delhi',  destination: 'Jaipur',       start: [28.6139, 77.2090], end: [26.9124, 75.7873], via: [27.8000, 76.5600], terrain: 'Highway',      weight: () => 8  + Math.random() * 8  },
+  { origin: 'Delhi',  destination: 'Lucknow',      start: [28.6139, 77.2090], end: [26.8467, 80.9462], via: [27.5706, 79.4800], terrain: 'Highway',      weight: () => 14 + Math.random() * 10 },
+  { origin: 'Bengaluru', destination: 'Chennai',   start: [12.9716, 77.5946], end: [13.0827, 80.2707], via: [12.8340, 78.9600], terrain: 'Flat',         weight: () => 10 + Math.random() * 8  },
+  { origin: 'Bengaluru', destination: 'Hyderabad', start: [12.9716, 77.5946], end: [17.3850, 78.4867], via: [14.8700, 78.2200], terrain: 'Mountainous', weight: () => 18 + Math.random() * 14 },
+  { origin: 'Nagpur',    destination: 'Hyderabad', start: [21.1458, 79.0882], end: [17.3850, 78.4867], via: [19.4400, 78.8000], terrain: 'Flat',         weight: () => 10 + Math.random() * 8  },
+  { origin: 'Kolkata',   destination: 'Patna',     start: [22.5726, 88.3639], end: [25.5941, 85.1376], via: [24.1000, 86.9000], terrain: 'Flat',         weight: () => 9  + Math.random() * 7  },
+  { origin: 'Mumbai',    destination: 'Nagpur',    start: [19.0760, 72.8777], end: [21.1458, 79.0882], via: [20.3000, 76.5600], terrain: 'Highway',      weight: () => 22 + Math.random() * 8  },
+  { origin: 'Chennai',   destination: 'Kolkata',   start: [13.0827, 80.2707], end: [22.5726, 88.3639], via: [17.6868, 83.2185], terrain: 'Coastal',      weight: () => 15 + Math.random() * 10 },
+];
+
 const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIsScanning }) => {
   const alerts = [
     { id: 1, message: "Heavy Rain near Vijayawada - Potential 2-hour delay.", type: "warning", location: [16.5062, 80.6480] as [number, number], icon: <CloudLightning className="w-4 h-4 text-blue-400" /> },
@@ -18,13 +32,31 @@ const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIs
     setFocusedLocation(location);
   };
 
-  const handleRunOptimization = () => {
+  const handleRunOptimization = async () => {
     if (isScanning) return;
     setIsScanning(true);
-    // Simulate API call for optimization
-    setTimeout(() => {
-      setIsScanning(false);
-    }, 2000);
+    
+    try {
+      const response = await fetch('http://localhost:8081/api/optimize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shipmentId: 'ALL' })
+      });
+      const data = await response.json();
+      console.log('AI Optimization Result:', data.message);
+      
+      if (data.success) {
+        alert(data.message);
+        // Map.tsx is now auto-polling, so it will update on its own without needing a hard reload!
+      }
+    } catch (error) {
+      console.error('Optimization failed:', error);
+    } finally {
+      // Keep scanning effect for a moment for UX
+      setTimeout(() => {
+        setIsScanning(false);
+      }, 1500);
+    }
   };
 
   return (
@@ -85,8 +117,78 @@ const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIs
         ))}
       </div>
 
-      {/* Action Button */}
-      <div className="p-4 bg-slate-800/80 backdrop-blur-md">
+      {/* Action Buttons */}
+      <div className="p-4 bg-slate-800/80 backdrop-blur-md space-y-3">
+        <button 
+          onClick={async () => {
+            try {
+              // Pick a RANDOM real route from our city database
+              const route = INDIA_ROUTES[Math.floor(Math.random() * INDIA_ROUTES.length)];
+              const weight = Math.round(route.weight() * 10) / 10;
+
+              // Interpolate the truck's CURRENT position along the route (0% to 70% of progress)
+              const progress = Math.random() * 0.7;
+              const currentLat = route.start[0] + (route.end[0] - route.start[0]) * progress;
+              const currentLng = route.start[1] + (route.end[1] - route.start[1]) * progress;
+              const currentLocation = [currentLat, currentLng];
+
+              // Build a 3-point route: current position -> midpoint city -> final destination
+              const fullRoute = [currentLocation, route.via, route.end];
+
+              const truck_id = `TRK-${Math.floor(Math.random() * 9000) + 1000}`;
+
+              const response = await fetch('http://localhost:8081/api/shipments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  truck_id,
+                  origin: route.origin,
+                  destination: route.destination,
+                  weight,
+                  terrain_type: route.terrain,
+                  location: currentLocation,
+                  route: fullRoute
+                })
+              });
+              const responseData = await response.json();
+              if (response.ok) {
+                // ⚡ Auto-spawn a disruption right next to this truck so the AI has something to resolve!
+                const DISRUPTION_TYPES = [
+                  { type: 'Weather',  severities: ['High', 'Medium'], descriptions: ['Severe cyclone warning on this corridor', 'Heavy monsoon flooding reported', 'Dense fog - visibility below 50m'] },
+                  { type: 'Traffic',  severities: ['Medium', 'Low'],  descriptions: ['Major multi-vehicle collision, 3 lanes blocked', 'NH highway maintenance closure', 'Protest blocking NH junction'] },
+                ];
+                const disruptionTemplate = DISRUPTION_TYPES[Math.floor(Math.random() * DISRUPTION_TYPES.length)];
+                const severity = disruptionTemplate.severities[Math.floor(Math.random() * disruptionTemplate.severities.length)];
+                const description = disruptionTemplate.descriptions[Math.floor(Math.random() * disruptionTemplate.descriptions.length)];
+                
+                // Place the disruption EXACTLY on the truck's route (at the midpoint city)
+                const disruptionLocation = route.via;
+
+                await fetch('http://localhost:8081/api/disruptions', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    type: disruptionTemplate.type,
+                    severity,
+                    location: disruptionLocation,
+                    description
+                  })
+                });
+
+                console.log(`🚨 Disruption spawned near ${route.via} for truck ${truck_id}`);
+              } else {
+                alert('Error: ' + JSON.stringify(responseData));
+              }
+            } catch (err) {
+              console.error('Failed to dispatch truck:', err);
+            }
+          }}
+          className="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold py-2 px-4 rounded-xl transition-all flex items-center justify-center gap-2 border border-slate-600 text-xs"
+        >
+          <Truck className="w-3 h-3" />
+          Add Simulation Truck
+        </button>
+
         <button 
           onClick={handleRunOptimization}
           disabled={isScanning}

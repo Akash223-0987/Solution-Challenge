@@ -1,0 +1,7 @@
+{
+  "watch": ["server.js", "src"],
+  "ext": "js,mjs,cjs,json",
+  "ignore": [".env", ".env.*", "node_modules", "test-env.js"],
+  "exec": "node --env-file=.env server.js",
+  "delay": 500
+}

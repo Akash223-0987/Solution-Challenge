@@ -6,10 +6,18 @@ import dotenv from 'dotenv';
 dotenv.config({ override: true });
 
 import { supabase } from './src/lib/supabase.js';
+import { OpenRouter } from "@openrouter/sdk";
+
+const openrouter = new OpenRouter({
+  apiKey: process.env.OPENROUTER_API_KEY
+});
+
+const AI_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
 
 const app = express();
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cors());
-app.use(express.json());
 
 // 1. Fetch All Active Shipments (For your Map)
 app.get('/api/shipments', async (req, res) => {
@@ -80,7 +88,45 @@ app.post('/api/shipments', async (req, res) => {
     }]);
 
   if (error) return res.status(400).json(error);
-  res.json({ message: "Shipment Created", data });
+
+  // Gemini (OpenRouter) Disruption Risk Scoring
+  let riskScore = 50; // default
+  let riskAnalysis = "Analyzing risk...";
+
+  try {
+    const prompt = `Score the logistics risk (0-100) for a shipment from ${origin} to ${destination}. 
+    Truck ID: ${truck_id}, Weight: ${weight}T, Terrain: ${terrain_type}. 
+    Respond with ONLY a number followed by a short one-sentence explanation. 
+    Format: [score] | [explanation]`;
+
+    const riskResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: AI_MODEL,
+        messages: [{ role: "user", content: prompt }]
+      })
+    });
+
+    const aiData = await riskResponse.json();
+    const aiText = aiData.choices?.[0]?.message?.content || "";
+    const [scorePart, explanation] = aiText.split('|').map(s => s.trim());
+    riskScore = parseInt(scorePart) || 50;
+    riskAnalysis = explanation || "Risk analysis completed.";
+    
+    // Attempt to update the shipment with the risk score if the column exists
+    await supabase.from('shipments').update({ 
+      status: riskScore > 70 ? 'Critical' : (riskScore > 40 ? 'At Risk' : 'On-Track')
+    }).eq('truck_id', truck_id);
+
+  } catch (aiErr) {
+    console.error("Risk Scoring AI Error:", aiErr);
+  }
+
+  res.json({ message: "Shipment Created", data, riskScore, riskAnalysis });
 });
 
 // 2.5 Fetch All Active Disruptions (Weather/Traffic)
@@ -106,6 +152,33 @@ app.delete('/api/disruptions', async (req, res) => {
   const { error } = await supabase.from('disruptions').delete().neq('id', 0);
   if (error) return res.status(400).json(error);
   res.json({ message: 'All disruptions cleared' });
+});
+
+// 2.8 Get Real Road Route from OSRM (Free, No Key Required)
+app.get('/api/road-route', async (req, res) => {
+  const { start, end } = req.query; // Expecting "lat,lng" format
+  if (!start || !end) return res.status(400).json({ error: "Start and end coordinates required" });
+
+  try {
+    const [startLat, startLng] = start.split(',').map(Number);
+    const [endLat, endLng] = end.split(',').map(Number);
+
+    // OSRM uses [lng, lat] format
+    const url = `http://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (!data.routes || data.routes.length === 0) {
+      throw new Error("No route found from OSRM");
+    }
+
+    // Convert back from [lng, lat] to [lat, lng]
+    const coords = data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+    res.json({ coordinates: coords });
+  } catch (error) {
+    console.error("Road route fetch error:", error);
+    res.status(500).json({ error: "Failed to fetch road route" });
+  }
 });
 
 // 3. The AI Optimizer Engine
@@ -191,18 +264,46 @@ app.post('/api/optimize', async (req, res) => {
         nearestDisruption
       );
 
-      // New 3-point route: current position → short bypass detour → final destination
-      const newRoute = [shipment.location, bypassWaypoint, destination];
+      // instead of a 3-point straight line, we fetch a REAL road bypass via OSRM
+      try {
+        const urlLeg1 = `http://router.project-osrm.org/route/v1/driving/${shipment.location[1]},${shipment.location[0]};${bypassWaypoint[1]},${bypassWaypoint[0]}?overview=full&geometries=geojson`;
+        const urlLeg2 = `http://router.project-osrm.org/route/v1/driving/${bypassWaypoint[1]},${bypassWaypoint[0]};${destination[1]},${destination[0]}?overview=full&geometries=geojson`;
+        
+        const [res1, res2] = await Promise.all([fetch(urlLeg1), fetch(urlLeg2)]);
+        const [data1, data2] = await Promise.all([res1.json(), res2.json()]);
 
-      updates.push(
-        supabase.from('shipments')
-          .update({
-            status: 'On-Track',
-            terrain_type: 'Highway',
-            route: newRoute
-          })
-          .eq('id', shipment.id)
-      );
+        let combinedCoords = [];
+        if (data1.routes?.[0]) {
+          combinedCoords.push(...data1.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]));
+        }
+        if (data2.routes?.[0]) {
+          combinedCoords.push(...data2.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]));
+        }
+
+        const newRoute = combinedCoords.length > 0 ? combinedCoords : [shipment.location, bypassWaypoint, destination];
+
+        updates.push(
+          supabase.from('shipments')
+            .update({
+              status: 'On-Track',
+              terrain_type: 'Highway',
+              route: newRoute
+            })
+            .eq('id', shipment.id)
+        );
+      } catch (roadErr) {
+        console.error("Optimizer Road Fetch Error:", roadErr);
+        // Fallback to straight lines if OSRM fails
+        updates.push(
+          supabase.from('shipments')
+            .update({
+              status: 'On-Track',
+              terrain_type: 'Highway',
+              route: [shipment.location, bypassWaypoint, destination]
+            })
+            .eq('id', shipment.id)
+        );
+      }
       fixedCount++;
     }
 
@@ -214,9 +315,43 @@ app.post('/api/optimize', async (req, res) => {
       await supabase.from('disruptions').delete().neq('id', 0);
     }
 
+    // Generate AI Route Explanation
+    let aiExplanation = "";
+    if (fixedCount > 0) {
+      try {
+        // Just explain the first re-routed truck for now as a sample
+        const ship = shipments.find(s => (s.status !== 'On-Track' || (s.weight > 15 && s.terrain_type === 'Mountainous')));
+        if (ship) {
+          const prompt = `Explain the rerouting for Truck ${ship.truck_id} (${ship.weight}T) traveling from ${ship.origin} to ${ship.destination}. 
+          It was diverted due to a disruption. New route involves a bypass waypoint. 
+          Respond with a professional, human-readable summary. 
+          Example: "TRK-4521 (22T) diverted via NH73 to bypass Cyclone zone. Extra distance: 68km. Estimated extra cost: ₹4,200. ETA delay: 47 mins."`;
+
+          const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              model: AI_MODEL,
+              messages: [{ role: "user", content: prompt }]
+            })
+          });
+          
+          const aiData = await aiResponse.json();
+          aiExplanation = aiData.choices?.[0]?.message?.content || "";
+        }
+      } catch (aiErr) {
+        console.error("Optimization AI Error:", aiErr);
+        aiExplanation = "AI re-routed trucks to bypass disruption zones. Monitoring secondary corridors.";
+      }
+    }
+
     res.json({ 
       success: true, 
-      message: `✅ AI Re-routing complete! ${fixedCount} truck${fixedCount !== 1 ? 's' : ''} safely diverted via bypass corridors.` 
+      message: `✅ AI Re-routing complete! ${fixedCount} truck${fixedCount !== 1 ? 's' : ''} safely diverted.`,
+      aiExplanation: aiExplanation || `Diverted ${fixedCount} trucks via bypass corridors.`
     });
   } catch (err) {
     console.error(err);

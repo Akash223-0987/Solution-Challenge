@@ -1,5 +1,5 @@
 import React from 'react';
-import { Truck, AlertTriangle, Clock, Zap, CloudLightning, Car, Anchor } from 'lucide-react';
+import { Truck, AlertTriangle, Clock, Zap, CloudLightning, Car, Anchor, Info, ShieldCheck } from 'lucide-react';
 
 interface SidebarProps {
   setFocusedLocation: (loc: [number, number] | null) => void;
@@ -22,6 +22,24 @@ const INDIA_ROUTES = [
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIsScanning }) => {
+  const [aiExplanation, setAiExplanation] = React.useState<string | null>(null);
+  const [shipments, setShipments] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    const fetchShipments = async () => {
+      try {
+        const res = await fetch('http://localhost:8081/api/shipments');
+        const data = await res.json();
+        setShipments(data);
+      } catch (err) {
+        console.error('Failed to fetch shipments:', err);
+      }
+    };
+    fetchShipments();
+    const interval = setInterval(fetchShipments, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
   const alerts = [
     { id: 1, message: "Heavy Rain near Vijayawada - Potential 2-hour delay.", type: "warning", location: [16.5062, 80.6480] as [number, number], icon: <CloudLightning className="w-4 h-4 text-blue-400" /> },
     { id: 2, message: "NH48 Traffic Bottleneck near Pune - Slow current speed.", type: "info", location: [18.5204, 73.8567] as [number, number], icon: <Car className="w-4 h-4 text-amber-400" /> },
@@ -46,7 +64,7 @@ const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIs
       console.log('AI Optimization Result:', data.message);
       
       if (data.success) {
-        alert(data.message);
+        setAiExplanation(data.aiExplanation);
         // Map.tsx is now auto-polling, so it will update on its own without needing a hard reload!
       }
     } catch (error) {
@@ -55,7 +73,7 @@ const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIs
       // Keep scanning effect for a moment for UX
       setTimeout(() => {
         setIsScanning(false);
-      }, 1500);
+      }, 2000);
     }
   };
 
@@ -96,21 +114,56 @@ const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIs
         </div>
       </div>
 
+      {/* AI Reasoning Panel */}
+      {aiExplanation && (
+        <div className="mx-4 mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="flex items-center gap-2 mb-2">
+            <ShieldCheck className="w-4 h-4 text-blue-400" />
+            <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">AI Route Optimization</span>
+          </div>
+          <p className="text-xs text-blue-100 leading-relaxed italic">
+            "{aiExplanation}"
+          </p>
+        </div>
+      )}
+
       {/* Disruption Feed */}
       <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3">
         <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2 sticky top-0 bg-slate-900 py-2">
-          Disruption Feed
+          Disruption & Risk Feed
         </h3>
+        
+        {/* Risk Badges for Trucks */}
+        {shipments.filter(s => s.status !== 'On-Track').map((ship) => (
+          <div 
+            key={ship.id}
+            onClick={() => setFocusedLocation(ship.location)}
+            className="p-3 bg-slate-800/80 rounded-lg border-l-4 border-l-red-500 text-sm hover:bg-slate-800 transition-all cursor-pointer"
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="font-bold text-slate-200">{ship.truck_id}</span>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                ship.status === 'Critical' ? 'bg-red-500/20 text-red-500' : 'bg-amber-500/20 text-amber-500'
+              }`}>
+                {ship.status === 'Critical' ? '🔴 Critical' : '🟡 Medium'} Risk
+              </span>
+            </div>
+            <div className="text-xs text-slate-400">
+              Diverting ${ship.origin} → ${ship.destination}
+            </div>
+          </div>
+        ))}
+
         {alerts.map((alert) => (
           <div 
             key={alert.id} 
             onClick={() => handleAlertClick(alert.location)}
-            className="p-3 bg-slate-800/50 rounded-lg border-l-4 border-l-amber-500 text-sm hover:bg-slate-800 transition-all cursor-pointer flex items-start gap-3"
+            className="p-3 bg-slate-800/30 rounded-lg border-l-4 border-l-slate-700 text-sm hover:bg-slate-800 transition-all cursor-pointer flex items-start gap-3 opacity-70"
           >
             <div className="mt-0.5 shrink-0">
               {alert.icon}
             </div>
-            <div className="text-slate-300 leading-snug">
+            <div className="text-slate-400 leading-snug">
               {alert.message}
             </div>
           </div>
@@ -132,8 +185,12 @@ const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIs
               const currentLng = route.start[1] + (route.end[1] - route.start[1]) * progress;
               const currentLocation = [currentLat, currentLng];
 
-              // Build a 3-point route: current position -> midpoint city -> final destination
-              const fullRoute = [currentLocation, route.via, route.end];
+              // 1. Get Real Road-Following Route from our new backend endpoint
+              const roadRes = await fetch(`http://localhost:8081/api/road-route?start=${currentLat},${currentLng}&end=${route.end[0]},${route.end[1]}`);
+              const roadData = await roadRes.json();
+              
+              // Use the real road coordinates if available, otherwise fallback to our 3-point logic
+              const fullRoute = roadData.coordinates || [currentLocation, route.via, route.end];
 
               const truck_id = `TRK-${Math.floor(Math.random() * 9000) + 1000}`;
 

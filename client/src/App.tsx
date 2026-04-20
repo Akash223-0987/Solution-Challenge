@@ -1,15 +1,22 @@
 import { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import Map from './components/Map';
+import AddTruckModal from './components/AddTruckModal';
 
 function App() {
   const [focusedLocation, setFocusedLocation] = useState<[number, number] | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [isAddTruckModalOpen, setIsAddTruckModalOpen] = useState(false);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 font-sans antialiased text-slate-900">
       {/* Sidebar - Phase 1 & 3 */}
-      <Sidebar setFocusedLocation={setFocusedLocation} isScanning={isScanning} setIsScanning={setIsScanning} />
+      <Sidebar 
+        setFocusedLocation={setFocusedLocation} 
+        isScanning={isScanning} 
+        setIsScanning={setIsScanning} 
+        onOpenAddTruckModal={() => setIsAddTruckModalOpen(true)}
+      />
 
       {/* Main Content Area - Phase 1 & 2 */}
       <main className="flex-1 relative overflow-hidden flex flex-col">
@@ -32,6 +39,12 @@ function App() {
           <Map focusedLocation={focusedLocation} isScanning={isScanning} />
         </div>
       </main>
+
+      {/* Modals */}
+      <AddTruckModal 
+        isOpen={isAddTruckModalOpen} 
+        onClose={() => setIsAddTruckModalOpen(false)} 
+      />
     </div>
   );
 }

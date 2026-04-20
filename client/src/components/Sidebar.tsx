@@ -5,6 +5,7 @@ interface SidebarProps {
   setFocusedLocation: (loc: [number, number] | null) => void;
   isScanning: boolean;
   setIsScanning: (scanning: boolean) => void;
+  onOpenAddTruckModal: () => void;
 }
 
 // Real Indian logistics routes between major cities
@@ -21,7 +22,7 @@ const INDIA_ROUTES = [
   { origin: 'Chennai',   destination: 'Kolkata',   start: [13.0827, 80.2707], end: [22.5726, 88.3639], via: [17.6868, 83.2185], terrain: 'Coastal',      weight: () => 15 + Math.random() * 10 },
 ];
 
-const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIsScanning }) => {
+const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIsScanning, onOpenAddTruckModal }) => {
   const [aiExplanation, setAiExplanation] = React.useState<string | null>(null);
   const [shipments, setShipments] = React.useState<any[]>([]);
 
@@ -173,76 +174,10 @@ const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIs
       {/* Action Buttons */}
       <div className="p-4 bg-slate-800/80 backdrop-blur-md space-y-3">
         <button 
-          onClick={async () => {
-            try {
-              // Pick a RANDOM real route from our city database
-              const route = INDIA_ROUTES[Math.floor(Math.random() * INDIA_ROUTES.length)];
-              const weight = Math.round(route.weight() * 10) / 10;
-
-              // Interpolate the truck's CURRENT position along the route (0% to 70% of progress)
-              const progress = Math.random() * 0.7;
-              const currentLat = route.start[0] + (route.end[0] - route.start[0]) * progress;
-              const currentLng = route.start[1] + (route.end[1] - route.start[1]) * progress;
-              const currentLocation = [currentLat, currentLng];
-
-              // 1. Get Real Road-Following Route from our new backend endpoint
-              const roadRes = await fetch(`http://localhost:8081/api/road-route?start=${currentLat},${currentLng}&end=${route.end[0]},${route.end[1]}`);
-              const roadData = await roadRes.json();
-              
-              // Use the real road coordinates if available, otherwise fallback to our 3-point logic
-              const fullRoute = roadData.coordinates || [currentLocation, route.via, route.end];
-
-              const truck_id = `TRK-${Math.floor(Math.random() * 9000) + 1000}`;
-
-              const response = await fetch('http://localhost:8081/api/shipments', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  truck_id,
-                  origin: route.origin,
-                  destination: route.destination,
-                  weight,
-                  terrain_type: route.terrain,
-                  location: currentLocation,
-                  route: fullRoute
-                })
-              });
-              const responseData = await response.json();
-              if (response.ok) {
-                // ⚡ Auto-spawn a disruption right next to this truck so the AI has something to resolve!
-                const DISRUPTION_TYPES = [
-                  { type: 'Weather',  severities: ['High', 'Medium'], descriptions: ['Severe cyclone warning on this corridor', 'Heavy monsoon flooding reported', 'Dense fog - visibility below 50m'] },
-                  { type: 'Traffic',  severities: ['Medium', 'Low'],  descriptions: ['Major multi-vehicle collision, 3 lanes blocked', 'NH highway maintenance closure', 'Protest blocking NH junction'] },
-                ];
-                const disruptionTemplate = DISRUPTION_TYPES[Math.floor(Math.random() * DISRUPTION_TYPES.length)];
-                const severity = disruptionTemplate.severities[Math.floor(Math.random() * disruptionTemplate.severities.length)];
-                const description = disruptionTemplate.descriptions[Math.floor(Math.random() * disruptionTemplate.descriptions.length)];
-                
-                // Place the disruption EXACTLY on the truck's route (at the midpoint city)
-                const disruptionLocation = route.via;
-
-                await fetch('http://localhost:8081/api/disruptions', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    type: disruptionTemplate.type,
-                    severity,
-                    location: disruptionLocation,
-                    description
-                  })
-                });
-
-                console.log(`🚨 Disruption spawned near ${route.via} for truck ${truck_id}`);
-              } else {
-                alert('Error: ' + JSON.stringify(responseData));
-              }
-            } catch (err) {
-              console.error('Failed to dispatch truck:', err);
-            }
-          }}
-          className="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold py-2 px-4 rounded-xl transition-all flex items-center justify-center gap-2 border border-slate-600 text-xs"
+          onClick={onOpenAddTruckModal}
+          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/40 text-sm border border-emerald-500/50"
         >
-          <Truck className="w-3 h-3" />
+          <Truck className="w-4 h-4" />
           Add Simulation Truck
         </button>
 

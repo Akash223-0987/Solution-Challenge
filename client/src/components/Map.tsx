@@ -129,6 +129,20 @@ const createDisruptionIcon = (severity: string, type: string) => {
   });
 };
 
+const destinationIcon = L.divIcon({
+  className: 'destination-icon',
+  html: `
+    <div class="relative flex items-center justify-center">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 21.7C16.8 17.5 20 13.4 20 9.2C20 4.8 16.4 1.2 12 1.2C7.6 1.2 4 4.8 4 9.2C4 13.4 7.2 17.5 12 21.7Z" fill="#ef4444" stroke="white" stroke-width="1.5"/>
+        <circle cx="12" cy="9.2" r="3" fill="white"/>
+      </svg>
+    </div>
+  `,
+  iconSize: [30, 30],
+  iconAnchor: [15, 28],
+});
+
 // Auto-fly to coordinates when focusedLocation changes
 const MapEffect = ({ focusedLocation }: { focusedLocation: [number, number] | null }) => {
   const map = useMap();
@@ -467,6 +481,36 @@ const Map: React.FC<MapProps> = ({ focusedLocation, isScanning }) => {
                 position={pos} 
                 rotation={rot}
               />
+
+              {/* Destination Pin */}
+              {shipment.route && shipment.route.length > 0 && (
+                <Marker 
+                  position={shipment.route[shipment.route.length - 1] as [number, number]} 
+                  icon={destinationIcon}
+                  eventHandlers={{
+                    mouseover: (e) => e.target.openPopup(),
+                    mouseout: (e) => e.target.closePopup(),
+                  }}
+                >
+                  <Popup>
+                    <div className="p-2 min-w-[150px]">
+                      <div className="flex items-center gap-2 mb-2 border-b border-slate-700 pb-1">
+                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                        <h3 className="font-bold text-white text-xs uppercase">Destination</h3>
+                      </div>
+                      <div className="text-xs text-slate-300">
+                        <div className="flex justify-between items-center mb-1">
+                          <span>Point:</span>
+                          <span className="font-semibold text-red-400">{shipment.destination || 'Delivery Point'}</span>
+                        </div>
+                        <div className="text-[10px] text-slate-500">
+                          ID: {shipment.id}
+                        </div>
+                      </div>
+                    </div>
+                  </Popup>
+                </Marker>
+              )}
             </React.Fragment>
           );
         })}
@@ -487,6 +531,13 @@ const Map: React.FC<MapProps> = ({ focusedLocation, isScanning }) => {
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_#ef4444] animate-pulse"></div>
             <span className="text-[11px] text-slate-300 font-medium">Critical</span>
+          </div>
+          <div className="w-px h-4 bg-slate-700 mx-1"></div>
+          <div className="flex items-center gap-1.5">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="#ef4444" stroke="white" stroke-width="2">
+              <path d="M12 21C16 17 20 13.4183 20 9C20 4.58172 16.4183 1 12 1C7.58172 1 4 4.58172 4 9C4 13.4183 8 17 12 21Z"/>
+            </svg>
+            <span className="text-[11px] text-slate-300 font-medium">Destination</span>
           </div>
         </div>
       </div>

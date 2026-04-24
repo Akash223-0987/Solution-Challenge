@@ -3,15 +3,21 @@ import Sidebar from './components/Sidebar';
 import Map from './components/Map';
 import AddTruckModal from './components/AddTruckModal';
 import HeroSection from './components/HeroSection';
+import AuthPage from './components/AuthPage';
 
 function App() {
   const [showHero, setShowHero] = useState(true);
+  const [showAuth, setShowAuth] = useState(false);
   const [focusedLocation, setFocusedLocation] = useState<[number, number] | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [isAddTruckModalOpen, setIsAddTruckModalOpen] = useState(false);
 
+  if (showAuth) {
+    return <AuthPage onBack={() => setShowAuth(false)} onLoginSuccess={() => { setShowAuth(false); setShowHero(false); }} />;
+  }
+
   if (showHero) {
-    return <HeroSection onEnterDashboard={() => setShowHero(false)} />;
+    return <HeroSection onEnterDashboard={() => setShowHero(false)} onOpenAuth={() => setShowAuth(true)} />;
   }
 
   return (

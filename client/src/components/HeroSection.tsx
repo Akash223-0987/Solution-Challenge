@@ -132,7 +132,7 @@ function GlassCard({ children, style = {} }: { children: React.ReactNode; style?
 }
 
 /* ── Main Hero ─────────────────────────────────────────────────── */
-export default function HeroSection({ onEnterDashboard }: { onEnterDashboard: () => void }) {
+export default function HeroSection({ onEnterDashboard, onOpenAuth }: { onEnterDashboard: () => void, onOpenAuth: () => void }) {
   const [entered, setEntered] = useState(false);
   const [mapHovered, setMapHovered] = useState(false);
 
@@ -206,10 +206,12 @@ export default function HeroSection({ onEnterDashboard }: { onEnterDashboard: ()
             <div style={{ width:6, height:6, borderRadius:'50%', background:'#00E5A0', animation:'pulseD 2s infinite' }}/>
             <span style={{ color:'#64748b', fontSize:11, fontWeight:600, letterSpacing:0.5, textTransform:'uppercase' }}>Live System</span>
           </div>
-          <span style={{ color:'#94a3b8', fontSize:13.5, fontWeight:500, cursor:'pointer', transition:'color .2s' }}
+          <span 
+            onClick={onOpenAuth}
+            style={{ color:'#94a3b8', fontSize:13.5, fontWeight:500, cursor:'pointer', transition:'color .2s' }}
             onMouseEnter={e=>(e.currentTarget.style.color='#fff')}
             onMouseLeave={e=>(e.currentTarget.style.color='#94a3b8')}>Sign In</span>
-          <button onClick={onEnterDashboard}
+          <button onClick={onOpenAuth}
             style={{ background:'#00E5A0', color:'#0D0F18', border:'none', borderRadius:7,
               padding:'8px 18px', fontSize:13, fontWeight:700, cursor:'pointer', transition:'all .2s',
               boxShadow:'0 0 12px rgba(0,229,160,0.3)' }}

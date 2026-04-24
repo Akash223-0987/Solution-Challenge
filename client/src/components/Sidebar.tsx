@@ -1,67 +1,82 @@
 import React from 'react';
-import { Truck, AlertTriangle, Clock, Zap, CloudLightning, Car, Anchor, ShieldCheck } from 'lucide-react';
+import { Truck, AlertTriangle, Clock, Zap, CloudLightning, Car, ShieldCheck, Focus, X } from 'lucide-react';
+import type { Shipment, Disruption, ActiveFilter } from '../types';
+import GatiShaktiModal from './GatiShaktiModal';
 
 interface SidebarProps {
   setFocusedLocation: (loc: [number, number] | null) => void;
   isScanning: boolean;
   setIsScanning: (scanning: boolean) => void;
   onOpenAddTruckModal: () => void;
+  shipments: Shipment[];
+  disruptions: Disruption[];
+  fetchError: boolean;
+  activeFilter: ActiveFilter;
+  setActiveFilter: (f: ActiveFilter) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIsScanning, onOpenAddTruckModal }) => {
-  const [aiExplanation, setAiExplanation] = React.useState<string | null>(null);
-  const [shipments, setShipments] = React.useState<any[]>([]);
-  const [disruptions, setDisruptions] = React.useState<any[]>([]);
+const BASE = import.meta.env.VITE_API_URL;
 
-  React.useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [shipRes, disRes] = await Promise.all([
-          fetch('http://localhost:8082/api/shipments'),
-          fetch('http://localhost:8082/api/disruptions')
-        ]);
-        const shipData = await shipRes.json();
-        const disData = await disRes.json();
-        setShipments(shipData);
-        setDisruptions(disData);
-      } catch (err) {
-        console.error('Failed to sync fleet data:', err);
-      }
-    };
-    fetchData();
-    const interval = setInterval(fetchData, 5000);
-    return () => clearInterval(interval);
-  }, []);
+const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIsScanning, onOpenAddTruckModal, shipments, disruptions, fetchError, activeFilter, setActiveFilter }) => {
+  const [aiExplanation, setAiExplanation] = React.useState<string | null>(null);
+
+  // ── Gati Shakti preview modal state ──
+  const [gatiModalOpen, setGatiModalOpen] = React.useState(false);
+  const [gatiSuggestions, setGatiSuggestions] = React.useState<any[]>([]);
+  const [isApplyingRoutes, setIsApplyingRoutes] = React.useState(false);
 
   const handleRunOptimization = async () => {
     if (isScanning) return;
     setIsScanning(true);
-    
+
     try {
-      const response = await fetch('http://localhost:8082/api/optimize', {
+      // Step 1: Get preview suggestions from the backend
+      const previewRes = await fetch(`${BASE}/api/reroute-preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const previewData = await previewRes.json();
+
+      if (previewData.hasRisk && previewData.suggestions?.length > 0) {
+        // Show the Gati Shakti suggestion modal — user decides
+        setGatiSuggestions(previewData.suggestions);
+        setGatiModalOpen(true);
+        setIsScanning(false); // stop spinner while user decides
+      } else {
+        // No at-risk shipments — run optimization silently
+        await applyOptimization();
+      }
+    } catch (error) {
+      console.error('Preview failed:', error);
+      // Fall back to direct optimization
+      await applyOptimization();
+    }
+  };
+
+  const applyOptimization = async () => {
+    setIsApplyingRoutes(true);
+    try {
+      const response = await fetch(`${BASE}/api/optimize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ shipmentId: 'ALL' })
       });
       const data = await response.json();
       console.log('AI Optimization Result:', data.message);
-      
-      if (data.success) {
-        setAiExplanation(data.aiExplanation);
-      }
+      if (data.success) setAiExplanation(data.aiExplanation);
     } catch (error) {
       console.error('Optimization failed:', error);
     } finally {
-      setTimeout(() => {
-        setIsScanning(false);
-      }, 2000);
+      setIsApplyingRoutes(false);
+      setGatiModalOpen(false);
+      setTimeout(() => setIsScanning(false), 2000);
     }
   };
 
   const [filterModal, setFilterModal] = React.useState<{ title: string, list: any[] } | null>(null);
 
   const activeCount = shipments.length;
-  const atRiskCount = shipments.filter(s => s.status === 'Critical' || s.status === 'At Risk' || (s.delay || 0) > 30).length;
+  const atRiskCount = shipments.filter(s => s.status === 'Critical' || s.status === 'At Risk' || s.status === 'Delayed' || (s.delay || 0) > 30).length;
   const railCount = shipments.filter(s => s.transport_mode === 'Rail').length;
   const totalDelay = shipments.reduce((acc, s) => acc + (s.delay || 0), 0);
   const avgDelay = activeCount > 0 ? Math.round(totalDelay / activeCount) : 0;
@@ -72,6 +87,15 @@ const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIs
 
   return (
     <aside className="w-80 h-screen bg-slate-900 text-slate-100 flex flex-col border-r border-slate-700 shadow-2xl overflow-hidden relative">
+
+      {/* Gati Shakti Multimodal Preview Modal */}
+      <GatiShaktiModal
+        isOpen={gatiModalOpen}
+        suggestions={gatiSuggestions}
+        onConfirm={applyOptimization}
+        onClose={() => { setGatiModalOpen(false); setIsScanning(false); }}
+        isApplying={isApplyingRoutes}
+      />
       {/* Drill-down Filter Modal Overlay */}
       {filterModal && (
         <div className="absolute inset-0 z-50 bg-slate-900/95 backdrop-blur-md flex flex-col animate-in slide-in-from-left duration-300">
@@ -101,7 +125,7 @@ const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIs
                   <span className="font-bold text-slate-200 group-hover:text-blue-400 transition-colors uppercase">{ship.truck_id || ship.id}</span>
                   <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${
                     (ship.status === 'Critical' || ship.delay > 60) ? 'bg-red-500/20 text-red-500' : 
-                    (ship.status === 'At Risk' || ship.delay > 0) ? 'bg-amber-500/20 text-amber-500' : 'bg-emerald-500/20 text-emerald-500'
+                    (ship.status === 'At Risk' || ship.status === 'Delayed' || ship.delay > 0) ? 'bg-amber-500/20 text-amber-500' : 'bg-emerald-500/20 text-emerald-500'
                   }`}>
                     {ship.delay > 0 ? `+${ship.delay}m` : 'ON TIME'}
                   </span>
@@ -113,6 +137,16 @@ const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIs
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Backend Offline Error Banner */}
+      {fetchError && (
+        <div className="mx-3 mt-3 p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center gap-2 animate-pulse">
+          <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+          <p className="text-[10px] text-amber-300 font-bold uppercase tracking-wider">
+            Backend offline — showing cached data
+          </p>
         </div>
       )}
 
@@ -183,9 +217,22 @@ const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIs
 
       {/* Disruption Feed */}
       <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3">
-        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2 sticky top-0 bg-slate-900 py-2">
-          Disruption & Risk Feed
-        </h3>
+        <div className="flex items-center justify-between sticky top-0 bg-slate-900 py-2">
+          <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-widest">
+            Disruption & Risk Feed
+          </h3>
+          {/* Active filter indicator */}
+          {activeFilter && (
+            <button
+              onClick={() => setActiveFilter(null)}
+              className="flex items-center gap-1 text-[9px] bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/40 text-indigo-300 font-bold px-2 py-0.5 rounded-full transition-colors"
+            >
+              <Focus className="w-2.5 h-2.5" />
+              {activeFilter.type === 'shipment' ? activeFilter.label : 'Hub'}
+              <X className="w-2.5 h-2.5" />
+            </button>
+          )}
+        </div>
         
         {/* Real-time Global Disruptions (Storms, Traffic, etc) */}
         {disruptions.map((dis) => (
@@ -207,24 +254,44 @@ const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIs
 
         {/* Risk Badges for Trucks */}
         {shipments.filter(s => (s.status !== 'On-Track' || (s.delay || 0) > 20)).map((ship) => (
-          <div 
-            key={`risk-${ship.id}`}
-            onClick={() => setFocusedLocation(ship.location)}
-            className={`p-3 bg-slate-800/80 rounded-lg border-l-4 ${ship.status === 'Critical' ? 'border-l-red-500' : 'border-l-amber-500'} text-sm hover:bg-slate-800 transition-all cursor-pointer group`}
-          >
-            <div className="flex items-center justify-between mb-1">
-              <span className="font-bold text-slate-200 uppercase text-xs">TRK-{ship.truck_id || ship.id}</span>
-              <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
-                ship.status === 'Critical' ? 'bg-red-500/20 text-red-500' : 'bg-amber-500/20 text-amber-500'
-              }`}>
-                {ship.status}
-              </span>
+            <div
+              key={ship.id}
+              onClick={() => {
+                const shipId = String(ship.truck_id || ship.id);
+                const isActive = activeFilter?.type === 'shipment' && String(activeFilter.id) === shipId;
+                if (isActive) {
+                  setActiveFilter(null);
+                } else {
+                  setActiveFilter({ type: 'shipment', id: ship.id, label: ship.truck_id || String(ship.id) });
+                  setFocusedLocation(ship.location);
+                }
+              }}
+              className={`p-3 rounded-lg border-l-4 text-sm transition-all cursor-pointer group ${
+                activeFilter?.type === 'shipment' && String(activeFilter.id) === String(ship.id)
+                  ? 'bg-indigo-900/40 border-l-indigo-400 ring-1 ring-indigo-500/30'
+                  : ship.status === 'Critical'
+                  ? 'bg-slate-800/80 border-l-red-500 hover:bg-slate-800'
+                  : 'bg-slate-800/80 border-l-amber-500 hover:bg-slate-800'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-bold text-slate-200 uppercase text-xs flex items-center gap-1.5">
+                  {activeFilter?.type === 'shipment' && String(activeFilter.id) === String(ship.id) && (
+                    <Focus className="w-3 h-3 text-indigo-400" />
+                  )}
+                  TRK-{ship.truck_id || ship.id}
+                </span>
+                <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
+                  ship.status === 'Critical' ? 'bg-red-500/20 text-red-500' : 'bg-amber-500/20 text-amber-500'
+                }`}>
+                  {ship.status}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-[10px]">
+                <span className="text-slate-500">{ship.origin} → {ship.destination}</span>
+                <span className="font-bold text-slate-300">+{ship.delay}m</span>
+              </div>
             </div>
-            <div className="flex justify-between items-center text-[10px]">
-              <span className="text-slate-500">{ship.origin} → {ship.destination}</span>
-              <span className="font-bold text-slate-300">+{ship.delay}m</span>
-            </div>
-          </div>
         ))}
 
         {disruptions.length === 0 && shipments.filter(s => s.status !== 'On-Track').length === 0 && (

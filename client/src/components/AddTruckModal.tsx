@@ -8,17 +8,26 @@ interface AddTruckModalProps {
 }
 
 const TERRAIN_TYPES = ['Highway', 'Mountainous', 'Urban', 'Flat', 'Hilly'];
+const BASE = import.meta.env.VITE_API_URL;
+
+const INITIAL_FORM = {
+  truckNumber: '',
+  startLocation: '',
+  destination: '',
+  scheduledTime: new Date().toISOString().slice(0, 16),
+  weight: 15.0,
+  terrainType: 'Highway'
+};
 
 export default function AddTruckModal({ isOpen, onClose }: AddTruckModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({
-    truckNumber: '',
-    startLocation: '',
-    destination: '',
-    scheduledTime: new Date().toISOString().slice(0, 16),
-    weight: 15.0,
-    terrainType: 'Highway'
-  });
+  const [formData, setFormData] = useState(INITIAL_FORM);
+
+  // Reset form AND close — used for both Discard and X buttons
+  const handleClose = () => {
+    setFormData({ ...INITIAL_FORM, scheduledTime: new Date().toISOString().slice(0, 16) });
+    onClose();
+  };
 
   if (!isOpen) return null;
 
@@ -40,7 +49,7 @@ export default function AddTruckModal({ isOpen, onClose }: AddTruckModalProps) {
       // 2. Fetching real road route from OSRM
       // 3. AI Risk Scoring via OpenRouter
       // 4. Final insertion into Supabase
-      const response = await fetch('http://localhost:8082/api/shipments', {
+      const response = await fetch(`${BASE}/api/shipments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -63,14 +72,7 @@ export default function AddTruckModal({ isOpen, onClose }: AddTruckModalProps) {
       console.log('Successfully added truck:', result);
       
       // Reset form and close modal
-      setFormData({ 
-        truckNumber: '', 
-        startLocation: '', 
-        destination: '', 
-        scheduledTime: new Date().toISOString().slice(0, 16),
-        weight: 15.0,
-        terrainType: 'Highway'
-      });
+      setFormData({ ...INITIAL_FORM, scheduledTime: new Date().toISOString().slice(0, 16) });
       onClose();
     } catch (error) {
       console.error('Error adding truck:', error);
@@ -100,7 +102,7 @@ export default function AddTruckModal({ isOpen, onClose }: AddTruckModalProps) {
             </div>
           </div>
           <button 
-            onClick={onClose}
+            onClick={handleClose}
             className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-full transition-all"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -222,7 +224,7 @@ export default function AddTruckModal({ isOpen, onClose }: AddTruckModalProps) {
           <div className="col-span-2 mt-4 flex items-center gap-4">
             <button 
               type="button" 
-              onClick={onClose}
+              onClick={handleClose}
               className="flex-1 px-6 py-4 rounded-2xl text-sm font-bold text-slate-400 hover:text-white hover:bg-white/5 border border-transparent hover:border-slate-700 transition-all"
             >
               Discard

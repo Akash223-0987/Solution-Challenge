@@ -2,25 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-
-// Type definition for Shipment
-interface Shipment {
-  id: string | number;
-  truck_id?: string;
-  name?: string;
-  location: [number, number];
-  status: string;
-  delay: number;
-  weight: number;
-  maxWeight: number;
-  terrain?: string;
-  terrain_type?: string;
-  route?: [number, number][];
-  features?: string[];
-  origin?: string;
-  destination?: string;
-  transport_mode?: 'Road' | 'Rail';
-}
+import type { Shipment, Disruption, ActiveFilter } from '../types';
 
 // Enhanced Realistic 3D Truck Icon SVG
 const truckSvg = (color: string) => `
@@ -112,7 +94,12 @@ const calculateBearing = (start: [number, number], end: [number, number]) => {
 
 const createDisruptionIcon = (severity: string, type: string) => {
   const color = severity === 'High' || severity === 'Critical' ? '#ef4444' : '#f59e0b';
-  const emoji = type === 'Weather' ? '⛈️' : (type === 'Traffic' ? '🚦' : '🚧');
+  // Match real backend disruption type strings (Thunderstorm, Traffic Gridlock, etc.)
+  const emoji =
+    type.includes('Thunder') || type.includes('Storm') || type.includes('Weather') ? '⛈️' :
+    type.includes('Traffic') || type.includes('Gridlock') ? '🚦' :
+    type.includes('Landslide') || type.includes('Mountain') ? '⛰️' :
+    type.includes('Bridge') || type.includes('Maintenance') ? '🔧' : '🚧';
   
   return L.divIcon({
     className: 'disruption-icon',
@@ -184,7 +171,7 @@ const TruckMarker: React.FC<TruckMarkerProps> = ({ shipment, position, rotation 
         autoPan={false}
         eventHandlers={{ remove: () => setIsPinned(false) }}
       >
-        <div className="p-2 min-w-[200px]">
+        <div className="p-2 min-w-[230px]">
           <div className="flex justify-between items-start mb-2 border-b border-slate-700 pb-1">
             <h3 className="font-bold text-white text-xs uppercase">Shipment #{shipment.truck_id || shipment.id}</h3>
             {shipment.transport_mode === 'Rail' && (
@@ -194,12 +181,47 @@ const TruckMarker: React.FC<TruckMarkerProps> = ({ shipment, position, rotation 
           
           <div className="space-y-1 text-xs">
             <div className="flex justify-between items-center text-[10px]">
-              <span className="text-slate-400">Modal:</span>
+              <span className="text-slate-400">Mode:</span>
               <span className={`font-bold ${shipment.transport_mode === 'Rail' ? 'text-indigo-400' : 'text-emerald-400'}`}>
                 {shipment.transport_mode === 'Rail' ? 'Gati Shakti Multimodal' : 'National Highway'}
               </span>
             </div>
-            <div className="flex justify-between items-center">
+
+            {/* ── RAIL: Real Train Info Panel ── */}
+            {shipment.transport_mode === 'Rail' && shipment.train_number && (
+              <div className="mt-2 p-2 bg-indigo-500/10 border border-indigo-500/20 rounded-lg space-y-1.5">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className="text-base">🚂</span>
+                  <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-wider">Assigned Freight Train</span>
+                </div>
+                <div className="flex justify-between items-start">
+                  <span className="text-slate-400 text-[9px]">Train No.</span>
+                  <span className="font-bold text-white text-[10px]">{shipment.train_number}</span>
+                </div>
+                <div className="flex justify-between items-start gap-2">
+                  <span className="text-slate-400 text-[9px] shrink-0">Name</span>
+                  <span className="font-semibold text-indigo-200 text-[9px] text-right leading-tight">{shipment.train_name}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 text-[9px]">Operator</span>
+                  <span className="text-slate-300 text-[9px]">{shipment.train_operator}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 text-[9px]">Commodity</span>
+                  <span className="text-emerald-400 text-[9px] font-medium">{shipment.commodity_type}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 text-[9px]">Wagon Type</span>
+                  <span className="font-mono text-amber-400 text-[9px]">{shipment.wagon_type}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 text-[9px]">Avg Speed</span>
+                  <span className="text-blue-400 text-[9px] font-bold">{shipment.avg_speed_kmh} km/h</span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-between items-center mt-1">
               <span className="text-slate-400">Load:</span>
               <span className="font-semibold text-blue-400">{shipment.weight || 15} / {shipment.maxWeight || 20} Tons</span>
             </div>
@@ -210,35 +232,40 @@ const TruckMarker: React.FC<TruckMarkerProps> = ({ shipment, position, rotation 
                 style={{ width: `${((shipment.weight || 15) / (shipment.maxWeight || 20)) * 100}%` }}
               ></div>
             </div>
-            <div className="flex justify-between mt-2 items-center">
-              <span className="text-slate-400">Terrain:</span>
-              <span className={`font-medium ${(shipment.terrain || shipment.terrain_type) === 'Mountainous' ? 'text-amber-500' : 'text-emerald-400'}`}>
-                {shipment.terrain || shipment.terrain_type || 'Flat'}
-              </span>
-            </div>
-            
-            {/* Features Badges */}
-            {shipment.features && (
-              <div className="flex gap-1 mt-2 flex-wrap">
-                {shipment.features.map((f: string, i: number) => (
-                  <span key={i} className="text-[9px] bg-slate-800 border border-slate-600 text-slate-300 px-1.5 py-0.5 rounded mb-1">
-                    {f}
+            {/* Terrain & warnings — hidden for Rail (irrelevant once on a train) */}
+            {shipment.transport_mode !== 'Rail' && (
+              <>
+                <div className="flex justify-between mt-2 items-center">
+                  <span className="text-slate-400">Terrain:</span>
+                  <span className={`font-medium ${(shipment.terrain || shipment.terrain_type) === 'Mountainous' ? 'text-amber-500' : 'text-emerald-400'}`}>
+                    {shipment.terrain || shipment.terrain_type || 'Flat'}
                   </span>
-                ))}
-              </div>
-            )}
+                </div>
 
-            {/* Constraint Logic Visual Warning */}
-            {(shipment.terrain || shipment.terrain_type) === 'Mountainous' && ((shipment.weight || 0) / (shipment.maxWeight || 1)) > 0.8 && (
-              <div className="mt-2 text-[10px] text-red-400 font-bold bg-red-500/10 border border-red-500/20 p-1.5 rounded">
-                ⚠️ Warning: High Load for Steep Grade
-              </div>
+                {/* Features Badges */}
+                {shipment.features && (
+                  <div className="flex gap-1 mt-2 flex-wrap">
+                    {shipment.features.map((f: string, i: number) => (
+                      <span key={i} className="text-[9px] bg-slate-800 border border-slate-600 text-slate-300 px-1.5 py-0.5 rounded mb-1">
+                        {f}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Constraint Logic Visual Warning */}
+                {(shipment.terrain || shipment.terrain_type) === 'Mountainous' && ((shipment.weight || 0) / (shipment.maxWeight || 1)) > 0.8 && (
+                  <div className="mt-2 text-[10px] text-red-400 font-bold bg-red-500/10 border border-red-500/20 p-1.5 rounded">
+                    ⚠️ Warning: High Load for Steep Grade
+                  </div>
+                )}
+              </>
             )}
             
             <div className="mt-3 pt-2 border-t border-slate-700/50 flex justify-between items-center">
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                 shipment.status === 'On-Track' || shipment.status === 'On Time' ? 'text-emerald-400 bg-emerald-500/10' : 
-                shipment.status === 'At Risk' ? 'text-amber-400 bg-amber-500/10' : 'text-red-400 bg-red-500/10'
+                shipment.status === 'At Risk' || shipment.status === 'Delayed' ? 'text-amber-400 bg-amber-500/10' : 'text-red-400 bg-red-500/10'
               }`}>
                 {shipment.status}
               </span>
@@ -253,89 +280,69 @@ const TruckMarker: React.FC<TruckMarkerProps> = ({ shipment, position, rotation 
   );
 };
 
+// Auto-fly when hub filter is set
+const FilterFlyEffect = ({ activeFilter }: { activeFilter: ActiveFilter }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (!activeFilter) return;
+    if (activeFilter.type === 'hub') {
+      map.flyTo(activeFilter.coords, 8, { animate: true, duration: 1.2 });
+    }
+  }, [activeFilter, map]);
+  return null;
+};
+
+// Rail hub marker icons (normal & selected)
+const railHubIcon = L.divIcon({
+  className: '',
+  html: `<div style="width:28px;height:28px;background:linear-gradient(135deg,#4f46e5,#7c3aed);border:2px solid rgba(165,180,252,0.6);border-radius:6px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 12px rgba(99,102,241,0.5);font-size:14px">🚉</div>`,
+  iconSize: [28, 28], iconAnchor: [14, 14],
+});
+const railHubIconSelected = L.divIcon({
+  className: '',
+  html: `<div style="width:34px;height:34px;background:linear-gradient(135deg,#4f46e5,#7c3aed);border:2.5px solid #a5b4fc;border-radius:8px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 20px rgba(99,102,241,0.8);font-size:18px">🚉</div>`,
+  iconSize: [34, 34], iconAnchor: [17, 17],
+});
+
 interface MapProps {
   focusedLocation: [number, number] | null;
   isScanning: boolean;
+  shipments: Shipment[];
+  disruptions: Disruption[];
+  activeFilter: ActiveFilter;
+  setActiveFilter: (f: ActiveFilter) => void;
 }
 
-interface Disruption {
-  id: number;
-  type: string;
-  severity: string;
-  location: [number, number];
-  description?: string;
-}
-
-const Map: React.FC<MapProps> = ({ focusedLocation, isScanning }) => {
-  const [shipmentsData, setShipmentsData] = useState<Shipment[]>([]);
-  const [disruptions, setDisruptions] = useState<Disruption[]>([]);
-  const [loading, setLoading] = useState(true);
-
+const Map: React.FC<MapProps> = ({ focusedLocation, isScanning, shipments, disruptions, activeFilter, setActiveFilter }) => {
   // Track live positions and rotations for animation
   const [animatedPositions, setAnimatedPositions] = useState<Record<string | number, { pos: [number, number], rotation: number, progress: number }>>({});
 
-  // Persistent clock for animation to prevent resets on data updates
+  // Persistent clock — never reset so trucks don't snap on data re-poll
   const animStartRef = useRef<number>(Date.now());
+  // Keep latest shipments available inside the RAF loop without restarting it
+  const shipmentsRef = useRef<Shipment[]>(shipments);
+  useEffect(() => { shipmentsRef.current = shipments; }, [shipments]);
 
-  useEffect(() => {
-    let isInitialFetch = true;
-
-    const fetchAllData = async () => {
-      try {
-        const [shipRes, disrupRes] = await Promise.all([
-          fetch('http://localhost:8082/api/shipments'),
-          fetch('http://localhost:8082/api/disruptions').catch(() => null)
-        ]);
-
-        const shipData = await shipRes.json();
-        
-        if (disrupRes && disrupRes.ok) {
-          const disrupData = await disrupRes.json();
-          setDisruptions(disrupData);
-        }
-
-        if (shipData && shipData.length > 0) {
-          setShipmentsData(shipData);
-        } else if (isInitialFetch) {
-          const staticShipments = await import('../data/shipments.json');
-          setShipmentsData(staticShipments.default as unknown as Shipment[]);
-        }
-      } catch (error) {
-        console.error('Failed to fetch data:', error);
-      } finally {
-        if (isInitialFetch) {
-          setLoading(false);
-          isInitialFetch = false;
-        }
-      }
-    };
-
-    fetchAllData();
-    const intervalId = setInterval(fetchAllData, 3000);
-    return () => clearInterval(intervalId);
-  }, []);
-
-  // Movement Simulation Engine: Moves trucks along their polylines
+  // Movement Simulation Engine: runs permanently; reads shipmentsRef so it
+  // never restarts (and never causes position snapping) when data is polled.
   useEffect(() => {
     let animationFrameId: number;
 
     const animate = () => {
       const now = Date.now();
-      const elapsed = (now - animStartRef.current) / 1000; // total seconds since start
+      const elapsed = (now - animStartRef.current) / 1000; // total seconds since mount
 
       setAnimatedPositions(prev => {
         const next: Record<string | number, { pos: [number, number], rotation: number, progress: number }> = { ...prev };
         
-        shipmentsData.forEach(ship => {
+        shipmentsRef.current.forEach(ship => {
           if (!ship.route || ship.route.length < 2) {
             next[ship.id] = { pos: ship.location, rotation: 0, progress: 0 };
             return;
           }
 
-          // Calculate duration based on route length (approx 1 second per waypoint for realistic speed)
-          const speedFactor = 1.0; 
+          const speedFactor = 1.0;
           const duration = ship.route.length * speedFactor;
-          
           const progress = (elapsed % duration) / duration;
           
           const totalPoints = ship.route.length;
@@ -344,12 +351,11 @@ const Map: React.FC<MapProps> = ({ focusedLocation, isScanning }) => {
           const nextIndex = Math.min(index + 1, totalPoints - 1);
           const ratio = floatIndex - index;
 
-          const start = ship.route[index];
-          const end = ship.route[nextIndex];
+          const start = ship.route![index];
+          const end = ship.route![nextIndex];
 
           const lat = start[0] + (end[0] - start[0]) * ratio;
           const lng = start[1] + (end[1] - start[1]) * ratio;
-          
           const rotation = calculateBearing(start, end);
           
           next[ship.id] = { pos: [lat, lng], rotation, progress };
@@ -363,11 +369,47 @@ const Map: React.FC<MapProps> = ({ focusedLocation, isScanning }) => {
 
     animationFrameId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [shipmentsData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // ← empty deps: loop starts once at mount, reads data via ref
 
   const indiaCenter: [number, number] = [20.5937, 78.9629];
-  // Restrict map to a single world copy
   const worldBounds: L.LatLngBoundsExpression = [[-90, -180], [90, 180]];
+  const shipmentsData = shipments;
+
+  // ── Filter logic ──────────────────────────────────────────────────────────
+  const filteredIds = React.useMemo(() => {
+    if (!activeFilter) return null;
+    if (activeFilter.type === 'shipment') return new Set([String(activeFilter.id)]);
+    if (activeFilter.type === 'hub') {
+      const [hlat, hlng] = activeFilter.coords;
+      return new Set(
+        shipments
+          .filter(s => s.transport_mode === 'Rail' && s.route?.some(
+            pt => Math.sqrt(Math.pow(pt[0]-hlat,2) + Math.pow(pt[1]-hlng,2)) < 2.5
+          ))
+          .map(s => String(s.id))
+      );
+    }
+    return null;
+  }, [activeFilter, shipments]);
+
+  const isVisible = (s: Shipment) =>
+    !filteredIds || filteredIds.has(String(s.id));
+
+  // Collect unique rail hubs from Rail shipments
+  const railHubs = React.useMemo(() => {
+    const hubs = new globalThis.Map<string, [number, number]>();
+    shipments.forEach(s => {
+      if (s.transport_mode === 'Rail' && s.route && s.route.length >= 2) {
+        // The hub is the midpoint waypoint (index ~40% of route)
+        const midIdx = Math.floor(s.route.length * 0.4);
+        const pt = s.route[midIdx];
+        const key = `${pt[0].toFixed(2)},${pt[1].toFixed(2)}`;
+        if (!hubs.has(key)) hubs.set(key, pt as [number, number]);
+      }
+    });
+    return Array.from(hubs.entries()).map(([key, coords]) => ({ key, coords }));
+  }, [shipments]);
 
   return (
     <div className="h-full w-full relative">
@@ -388,10 +430,10 @@ const Map: React.FC<MapProps> = ({ focusedLocation, isScanning }) => {
         />
         
         <MapEffect focusedLocation={focusedLocation} />
-        {loading && <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1001] bg-slate-900 px-4 py-2 rounded-full text-xs text-blue-400 animate-pulse border border-blue-500/20">Syncing with Supabase...</div>}
+        <FilterFlyEffect activeFilter={activeFilter} />
 
-        {/* Draw Disruptions */}
-        {disruptions.map(disruption => (
+        {/* Draw Disruptions — hide completely in Focus Mode */}
+        {!activeFilter && disruptions.map(disruption => (
           <React.Fragment key={`dis-${disruption.id}`}>
             {/* AI Nodal Scanning Notice */}
             {isScanning && (
@@ -416,73 +458,146 @@ const Map: React.FC<MapProps> = ({ focusedLocation, isScanning }) => {
           </React.Fragment>
         ))}
 
+        {/* Rail Hub Station Markers — clickable to filter by hub */}
+        {railHubs.map(({ key, coords }) => {
+          const isSelected = activeFilter?.type === 'hub' &&
+            Math.abs(activeFilter.coords[0] - coords[0]) < 0.05 &&
+            Math.abs(activeFilter.coords[1] - coords[1]) < 0.05;
+          
+          // Focus Mode: Hide all hubs that aren't the selected one
+          if (activeFilter && !isSelected) return null;
+
+          return (
+            <Marker
+              key={`hub-${key}`}
+              position={coords}
+              icon={isSelected ? railHubIconSelected : railHubIcon}
+              eventHandlers={{
+                click: () => setActiveFilter(
+                  isSelected ? null : { type: 'hub', name: `Rail Hub (${coords[0].toFixed(1)},${coords[1].toFixed(1)})`, coords }
+                ),
+              }}
+            >
+              <Popup>
+                <div className="p-2 min-w-[160px]">
+                  <div className="flex items-center gap-2 mb-2 border-b border-slate-700 pb-1">
+                    <span className="text-lg">🚉</span>
+                    <h3 className="font-bold text-indigo-300 text-xs uppercase">Rail Transshipment Hub</h3>
+                  </div>
+                  <p className="text-[10px] text-slate-400">Click to isolate shipments using this hub.</p>
+                  {isSelected && (
+                    <button
+                      onClick={() => setActiveFilter(null)}
+                      className="mt-2 w-full text-[10px] bg-slate-700 hover:bg-slate-600 text-white rounded px-2 py-1 transition-colors"
+                    >
+                      Reset View
+                    </button>
+                  )}
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+
         {shipmentsData.map((shipment) => {
           // Safety check: Don't render if location is missing
           if (!shipment.location) return null;
-          
+          const visible = isVisible(shipment);
+
+          // Strict Focus Mode: completely hide unrelated shipments and routes
+          if (!visible) return null;
+
           const pos = animatedPositions[shipment.id]?.pos || shipment.location as [number, number];
           const rot = animatedPositions[shipment.id]?.rotation || 0;
 
           return (
             <React.Fragment key={shipment.id}>
-              {/* Draw Path Route with Glow Effect and Navigation Fade */}
+              {/* Draw Path Route — dimmed when filtered out */}
               {shipment.route && (() => {
                 const progress = animatedPositions[shipment.id]?.progress || 0;
                 const totalPoints = shipment.route.length;
                 const splitIndex = Math.floor(progress * (totalPoints - 1));
-                
-                const pastRoute = shipment.route.slice(0, splitIndex + 1);
+                const pastRoute   = shipment.route.slice(0, splitIndex + 1);
                 const futureRoute = shipment.route.slice(splitIndex);
 
-                // Strict Color Logic for Gati Shakti Risk Levels
-                const futureColor = 
-                  (shipment.status === 'Critical' || (shipment.delay || 0) >= 180) ? '#ef4444' : 
-                  (shipment.status === 'At Risk' || (shipment.delay || 0) > 0) ? '#f59e0b' : 
+                const futureColor =
+                  (shipment.status === 'Critical' || (shipment.delay || 0) >= 180) ? '#ef4444' :
+                  (shipment.status === 'At Risk' || shipment.status === 'Delayed' || (shipment.delay || 0) > 0) ? '#f59e0b' :
                   '#10b981';
 
                 return (
                   <React.Fragment key={`routes-${shipment.id}`}>
-                    {/* PAST ROUTE (Faded History) */}
+                    {/* PAST ROUTE */}
                     {pastRoute.length >= 2 && (
-                      <Polyline 
-                        positions={pastRoute as [number, number][]} 
-                        color="#475569" 
+                      <Polyline
+                        positions={pastRoute as [number, number][]}
+                        color="#475569"
                         weight={3}
                         opacity={0.3}
                       />
                     )}
-
-                    {/* FUTURE ROUTE (Risk Indicator) */}
-                    {futureRoute.length >= 2 && (
+                    {/* FUTURE ROUTE */}
+                    {futureRoute.length >= 2 && shipment.transport_mode === 'Rail' ? (
                       <>
-                        {/* High-intensity Glow Underlay */}
-                        <Polyline 
-                          positions={futureRoute as [number, number][]} 
-                          color={futureColor} 
+                        {/* Train Track Glow based on Status */}
+                        <Polyline
+                          positions={futureRoute as [number, number][]}
+                          color={futureColor}
+                          weight={12}
+                          opacity={0.2}
+                        />
+                        {/* Train Track Base (Solid Dark Iron) */}
+                        <Polyline
+                          positions={futureRoute as [number, number][]}
+                          color="#0f172a"
+                          weight={6}
+                          opacity={0.9}
+                        />
+                        {/* Train Track Cross-Ties (Dashed Silver/Indigo) */}
+                        <Polyline
+                          positions={futureRoute as [number, number][]}
+                          color="#c7d2fe"
+                          weight={4}
+                          opacity={0.9}
+                          dashArray="4, 6"
+                          className="rail-track-anim"
+                        />
+                        {/* Inner Status Line */}
+                        <Polyline
+                          positions={futureRoute as [number, number][]}
+                          color={futureColor}
+                          weight={1.5}
+                          opacity={0.8}
+                        />
+                      </>
+                    ) : futureRoute.length >= 2 && (
+                      <>
+                        <Polyline
+                          positions={futureRoute as [number, number][]}
+                          color={futureColor}
                           weight={10}
                           opacity={0.15}
                         />
-                        {/* Core Status Line */}
-                        <Polyline 
-                          positions={futureRoute as [number, number][]} 
-                          color={futureColor} 
+                        <Polyline
+                          positions={futureRoute as [number, number][]}
+                          color={futureColor}
                           weight={4}
                           opacity={0.9}
-                          dashArray={shipment.transport_mode === 'Rail' ? "10, 10" : "none"} // Dash for Rail
                         />
                       </>
                     )}
                   </React.Fragment>
                 );
               })()}
-              
-              <TruckMarker 
-                shipment={shipment} 
-                position={pos} 
+
+              {/* Truck/train marker */}
+              <TruckMarker
+                shipment={shipment}
+                position={pos}
                 rotation={rot}
               />
 
-              {/* Destination Pin */}
+              {/* Destination pin */}
               {shipment.route && shipment.route.length > 0 && (
                 <Marker 
                   position={shipment.route[shipment.route.length - 1] as [number, number]} 
@@ -518,6 +633,21 @@ const Map: React.FC<MapProps> = ({ focusedLocation, isScanning }) => {
       
       {/* Legend Overlay */}
       <div className="absolute bottom-6 left-4 z-[1000] pointer-events-none">
+
+      {/* Active Filter Banner — Reset View */}
+      {activeFilter && (
+        <div className="mb-2 flex items-center gap-2 bg-indigo-900/90 backdrop-blur-md border border-indigo-500/40 rounded-xl px-3 py-2 shadow-xl pointer-events-auto">
+          <span className="text-indigo-300 text-[10px] font-bold uppercase tracking-wider">
+            {activeFilter.type === 'shipment' ? `📦 ${activeFilter.label}` : `🚉 Rail Hub`}
+          </span>
+          <button
+            onClick={() => setActiveFilter(null)}
+            className="ml-2 text-[10px] bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-2 py-0.5 rounded-lg transition-colors"
+          >
+            ✕ Reset View
+          </button>
+        </div>
+      )}
         <div className="bg-slate-900/90 backdrop-blur-md border border-slate-700/60 rounded-xl px-4 py-2.5 flex items-center gap-4 shadow-2xl">
           <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mr-1">Legend</span>
           <div className="flex items-center gap-1.5">
@@ -534,7 +664,7 @@ const Map: React.FC<MapProps> = ({ focusedLocation, isScanning }) => {
           </div>
           <div className="w-px h-4 bg-slate-700 mx-1"></div>
           <div className="flex items-center gap-1.5">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="#ef4444" stroke="white" stroke-width="2">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="#ef4444" stroke="white" strokeWidth="2">
               <path d="M12 21C16 17 20 13.4183 20 9C20 4.58172 16.4183 1 12 1C7.58172 1 4 4.58172 4 9C4 13.4183 8 17 12 21Z"/>
             </svg>
             <span className="text-[11px] text-slate-300 font-medium">Destination</span>

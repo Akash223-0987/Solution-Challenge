@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { supabase } from '../lib/supabase';
 import './AuthPage.css';
 
 interface AuthPageProps {
@@ -9,13 +10,60 @@ interface AuthPageProps {
 
 const AuthPage: React.FC<AuthPageProps> = ({ initialMode, onAuthComplete, onClose }) => {
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [role, setRole] = useState<string>('');
   const [showRoles, setShowRoles] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate auth
-    onAuthComplete();
+    setLoading(true);
+    setError(null);
+
+    try {
+      if (mode === 'signup') {
+        const { error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: fullName,
+              role: role,
+            }
+          }
+        });
+        if (signUpError) throw signUpError;
+        alert('Verification email sent! Please check your inbox.');
+      } else {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (signInError) throw signInError;
+        onAuthComplete();
+      }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during authentication.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      setError(err.message);
+    }
   };
 
   return (
@@ -38,12 +86,25 @@ const AuthPage: React.FC<AuthPageProps> = ({ initialMode, onAuthComplete, onClos
             : 'Join AetherLog to manage your logistics network.'}
         </p>
 
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-3 rounded-xl mb-4 text-center">
+            {error}
+          </div>
+        )}
+
         <form className="auth-form" onSubmit={handleSubmit}>
           {mode === 'signup' && (
             <>
               <div className="auth-form-row">
                 <div className="auth-input-group">
-                  <input type="text" className="auth-input" placeholder="Full Name" required />
+                  <input 
+                    type="text" 
+                    className="auth-input" 
+                    placeholder="Full Name" 
+                    required 
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                  />
                 </div>
                 <div className="auth-input-group">
                   <input type="text" className="auth-input" placeholder="Company (optional)" />
@@ -82,19 +143,28 @@ const AuthPage: React.FC<AuthPageProps> = ({ initialMode, onAuthComplete, onClos
 
           <div className="auth-input-group">
             <input 
-              type="text" 
+              type="email" 
               className="auth-input" 
               placeholder="Email Address" 
               required 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
           </div>
 
           <div className="auth-input-group">
-            <input type="password" className="auth-input" placeholder="Password" required />
+            <input 
+              type="password" 
+              className="auth-input" 
+              placeholder="Password" 
+              required 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
           </div>
 
-          <button type="submit" className="auth-submit-btn">
-            {mode === 'signin' ? 'Sign In' : 'Create Account'}
+          <button type="submit" className="auth-submit-btn" disabled={loading}>
+            {loading ? 'Processing...' : (mode === 'signin' ? 'Sign In' : 'Create Account')}
           </button>
         </form>
 
@@ -102,7 +172,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ initialMode, onAuthComplete, onClos
           <span>OR</span>
         </div>
 
-        <button className="auth-google-btn">
+        <button className="auth-google-btn" onClick={handleGoogleLogin} type="button">
           <svg width="18" height="18" viewBox="0 0 24 24">
             <path
               d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"

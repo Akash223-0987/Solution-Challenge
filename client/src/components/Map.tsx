@@ -3,7 +3,6 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Shipment, Disruption, ActiveFilter } from '../types';
-import { RAIL_NETWORK } from '../data/railNetwork';
 import { RAIL_HUBS } from '../data/railHubs';
 
 // Enhanced Realistic 3D Truck Icon SVG
@@ -416,19 +415,31 @@ const Map: React.FC<MapProps> = ({ focusedLocation, isScanning, shipments, disru
   const isVisible = (s: Shipment) =>
     !filteredIds || filteredIds.has(String(s.id));
 
-  // Collect unique rail hubs from Rail shipments
+  // Collect unique rail hubs from Rail shipments (Optimized O(N) detection)
   const railHubs = React.useMemo(() => {
     const hubs = new globalThis.Map<string, [number, number]>();
+    
+    // Create a spatial index of known hubs (3 decimal places precision)
+    const hubMap = new globalThis.Map<string, [number, number]>();
+    Object.values(RAIL_HUBS).forEach(coords => {
+      hubMap.set(`${coords[0].toFixed(3)},${coords[1].toFixed(3)}`, coords);
+    });
+
     shipments.forEach(s => {
       if (s.transport_mode === 'Rail' && s.route && s.route.length >= 2) {
-        // The hub is the midpoint waypoint (index ~40% of route)
-        const midIdx = Math.floor(s.route.length * 0.4);
-        const pt = s.route[midIdx];
-        const key = `${pt[0].toFixed(2)},${pt[1].toFixed(2)}`;
-        if (!hubs.has(key)) hubs.set(key, pt as [number, number]);
+        // Only check ~30 points spread across the route for speed
+        const step = Math.max(1, Math.floor(s.route.length / 30));
+        for (let i = 0; i < s.route.length; i += step) {
+          const pt = s.route[i];
+          const key = `${pt[0].toFixed(3)},${pt[1].toFixed(3)}`;
+          const matchingHub = hubMap.get(key);
+          if (matchingHub) {
+            hubs.set(key, matchingHub);
+          }
+        }
       }
     });
-    return Array.from(hubs.entries()).map(([key, coords]) => ({ key, coords }));
+    return Array.from(hubs.values()).map(coords => ({ key: `${coords[0]},${coords[1]}`, coords }));
   }, [shipments]);
 
   return (
@@ -554,7 +565,7 @@ const Map: React.FC<MapProps> = ({ focusedLocation, isScanning, shipments, disru
                 const futureColor =
                   (shipment.status === 'Critical' || (shipment.delay || 0) >= 150) ? '#ef4444' :
                   (shipment.status === 'At Risk' || shipment.status === 'Delayed' || (shipment.delay || 0) > 0) ? '#f59e0b' :
-                  '#64748b'; // Default to greyish for Rail if on track
+                  '#10b981'; // Vibrant Emerald Green for On-Track
 
                 return (
                   <React.Fragment key={`routes-${shipment.id}`}>

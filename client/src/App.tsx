@@ -4,6 +4,7 @@ import Map from './components/Map';
 import AddTruckModal from './components/AddTruckModal';
 import AuthPage from './components/AuthPage';
 import HeroSection from './components/HeroSection';
+import { supabase } from './lib/supabase';
 import type { Shipment, Disruption, ActiveFilter } from './types';
 
 const BASE = import.meta.env.VITE_API_URL;
@@ -11,6 +12,21 @@ const BASE = import.meta.env.VITE_API_URL;
 function App() {
   const [view, setView] = useState<'hero' | 'signin' | 'signup' | 'dashboard'>('hero');
   const [focusedLocation, setFocusedLocation] = useState<[number, number] | null>(null);
+  
+  useEffect(() => {
+    // Initial session check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setView('dashboard');
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) setView('dashboard');
+      else setView('hero');
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
   const [isScanning, setIsScanning] = useState(false);
   const [isAddTruckModalOpen, setIsAddTruckModalOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>(null);
@@ -38,21 +54,12 @@ function App() {
           setDisruptions(disrupData);
         }
 
-        if (shipData && shipData.length > 0) {
+        if (shipData) {
           setShipments(shipData);
-        } else if (isInitialFetch.current) {
-          // Fallback to static data only on the very first load
-          const staticShipments = await import('./data/shipments.json');
-          setShipments(staticShipments.default as unknown as Shipment[]);
         }
       } catch (error) {
         console.error('Failed to fetch data:', error);
         setFetchError(true);
-        // Load static fallback once if backend was never reachable
-        if (isInitialFetch.current) {
-          const staticShipments = await import('./data/shipments.json');
-          setShipments(staticShipments.default as unknown as Shipment[]);
-        }
       } finally {
         isInitialFetch.current = false;
       }

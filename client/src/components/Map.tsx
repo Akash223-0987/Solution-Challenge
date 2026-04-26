@@ -3,6 +3,8 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Shipment, Disruption, ActiveFilter } from '../types';
+import { RAIL_NETWORK } from '../data/railNetwork';
+import { RAIL_HUBS } from '../data/railHubs';
 
 // Enhanced Realistic 3D Truck Icon SVG
 const truckSvg = (color: string) => `
@@ -51,31 +53,43 @@ const truckSvg = (color: string) => `
 
 // Function to create custom glowing markers (Truck or Train for Gati Shakti)
 const createCustomIcon = (status: string, delay: number = 0, rotation: number = 0, mode: string = 'Road') => {
-  const color = (status === 'Critical' || delay > 60) ? '#ef4444' : (status === 'At Risk' || delay > 0 ? '#f59e0b' : '#10b981');
+  const color = (status === 'Critical' || delay >= 150) ? '#ef4444' : (status === 'At Risk' || delay > 0 ? '#f59e0b' : '#10b981');
   
+  // Freight Train SVG - Improved for heavy industrial look
   const railSvg = `
-  <svg width="46" height="46" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <svg width="52" height="52" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
     <g filter="url(#shadow)">
-      <rect x="5" y="45" width="90" height="25" rx="2" fill="#334155" stroke="${color}" stroke-width="2" />
-      <rect x="10" y="48" width="20" height="15" rx="1" fill="${color}" opacity="0.8" />
-      <rect x="40" y="48" width="20" height="15" rx="1" fill="${color}" opacity="0.8" />
-      <rect x="70" y="48" width="20" height="15" rx="1" fill="${color}" opacity="0.8" />
-      <circle cx="15" cy="72" r="3" fill="#1e293b" />
-      <circle cx="35" cy="72" r="3" fill="#1e293b" />
-      <circle cx="55" cy="72" r="3" fill="#1e293b" />
-      <circle cx="75" cy="72" r="3" fill="#1e293b" />
+      <!-- Locomotive -->
+      <rect x="5" y="40" width="30" height="20" rx="2" fill="#1e293b" stroke="${color}" stroke-width="2" />
+      <rect x="8" y="42" width="8" height="6" fill="#334155" /> <!-- Window -->
+      
+      <!-- Wagon 1 -->
+      <rect x="38" y="42" width="25" height="16" rx="1" fill="${color}" opacity="0.9" />
+      <line x1="38" y1="50" x2="63" y2="50" stroke="rgba(0,0,0,0.2)" stroke-width="1" />
+      
+      <!-- Wagon 2 -->
+      <rect x="66" y="42" width="25" height="16" rx="1" fill="${color}" opacity="0.9" />
+      <line x1="66" y1="50" x2="91" y2="50" stroke="rgba(0,0,0,0.2)" stroke-width="1" />
+      
+      <!-- Wheels -->
+      <circle cx="12" cy="62" r="3" fill="#0f172a" />
+      <circle cx="28" cy="62" r="3" fill="#0f172a" />
+      <circle cx="45" cy="62" r="2.5" fill="#0f172a" />
+      <circle cx="56" cy="62" r="2.5" fill="#0f172a" />
+      <circle cx="73" cy="62" r="2.5" fill="#0f172a" />
+      <circle cx="84" cy="62" r="2.5" fill="#0f172a" />
     </g>
   </svg>`;
 
   return L.divIcon({
     className: 'custom-icon',
     html: `
-      <div class="transition-all duration-100 ease-linear cursor-pointer" style="transform: rotate(${rotation}deg);">
+      <div class="transition-all duration-300 ease-linear cursor-pointer" style="transform: rotate(${rotation}deg);">
         ${mode === 'Rail' ? railSvg : truckSvg(color)}
       </div>
     `,
-    iconSize: [46, 46],
-    iconAnchor: [23, 23],
+    iconSize: [52, 52],
+    iconAnchor: [26, 26],
   });
 };
 
@@ -311,9 +325,10 @@ interface MapProps {
   disruptions: Disruption[];
   activeFilter: ActiveFilter;
   setActiveFilter: (f: ActiveFilter) => void;
+  viewMode: 'Road' | 'Rail';
 }
 
-const Map: React.FC<MapProps> = ({ focusedLocation, isScanning, shipments, disruptions, activeFilter, setActiveFilter }) => {
+const Map: React.FC<MapProps> = ({ focusedLocation, isScanning, shipments, disruptions, activeFilter, setActiveFilter, viewMode }) => {
   // Track live positions and rotations for animation
   const [animatedPositions, setAnimatedPositions] = useState<Record<string | number, { pos: [number, number], rotation: number, progress: number }>>({});
 
@@ -356,7 +371,10 @@ const Map: React.FC<MapProps> = ({ focusedLocation, isScanning, shipments, disru
 
           const lat = start[0] + (end[0] - start[0]) * ratio;
           const lng = start[1] + (end[1] - start[1]) * ratio;
-          const rotation = calculateBearing(start, end);
+          
+          // Adjust rotation: SVGs are drawn horizontally (facing 90deg East). 
+          // To make 0deg (North) point UP, we subtract 90.
+          const rotation = calculateBearing(start, end) - 90;
           
           next[ship.id] = { pos: [lat, lng], rotation, progress };
         });
@@ -374,7 +392,9 @@ const Map: React.FC<MapProps> = ({ focusedLocation, isScanning, shipments, disru
 
   const indiaCenter: [number, number] = [20.5937, 78.9629];
   const worldBounds: L.LatLngBoundsExpression = [[-90, -180], [90, 180]];
-  const shipmentsData = shipments;
+  const shipmentsData = viewMode === 'Rail' 
+    ? shipments.filter(s => s.transport_mode === 'Rail') 
+    : shipments.filter(s => s.transport_mode !== 'Rail');
 
   // ── Filter logic ──────────────────────────────────────────────────────────
   const filteredIds = React.useMemo(() => {
@@ -428,12 +448,23 @@ const Map: React.FC<MapProps> = ({ focusedLocation, isScanning, shipments, disru
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
           noWrap={true}
         />
+
+        {/* Real-world Railway Infrastructure Overlay (OpenRailwayMap) */}
+        {viewMode === 'Rail' && (
+          <TileLayer
+            className="rail-tiles"
+            attribution='Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Map style: &copy; <a href="https://www.OpenRailwayMap.org">OpenRailwayMap</a>'
+            url="https://{s}.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png"
+            zIndex={10}
+            opacity={0.8}
+          />
+        )}
         
         <MapEffect focusedLocation={focusedLocation} />
         <FilterFlyEffect activeFilter={activeFilter} />
 
-        {/* Draw Disruptions — hide completely in Focus Mode */}
-        {!activeFilter && disruptions.map(disruption => (
+        {/* Draw Disruptions — hide completely in Focus Mode and Rail Mode */}
+        {!activeFilter && viewMode !== 'Rail' && disruptions.map(disruption => (
           <React.Fragment key={`dis-${disruption.id}`}>
             {/* AI Nodal Scanning Notice */}
             {isScanning && (
@@ -459,7 +490,7 @@ const Map: React.FC<MapProps> = ({ focusedLocation, isScanning, shipments, disru
         ))}
 
         {/* Rail Hub Station Markers — clickable to filter by hub */}
-        {railHubs.map(({ key, coords }) => {
+        {viewMode === 'Rail' && railHubs.map(({ key, coords }) => {
           const isSelected = activeFilter?.type === 'hub' &&
             Math.abs(activeFilter.coords[0] - coords[0]) < 0.05 &&
             Math.abs(activeFilter.coords[1] - coords[1]) < 0.05;
@@ -521,9 +552,9 @@ const Map: React.FC<MapProps> = ({ focusedLocation, isScanning, shipments, disru
                 const futureRoute = shipment.route.slice(splitIndex);
 
                 const futureColor =
-                  (shipment.status === 'Critical' || (shipment.delay || 0) >= 180) ? '#ef4444' :
+                  (shipment.status === 'Critical' || (shipment.delay || 0) >= 150) ? '#ef4444' :
                   (shipment.status === 'At Risk' || shipment.status === 'Delayed' || (shipment.delay || 0) > 0) ? '#f59e0b' :
-                  '#10b981';
+                  '#64748b'; // Default to greyish for Rail if on track
 
                 return (
                   <React.Fragment key={`routes-${shipment.id}`}>
@@ -539,36 +570,30 @@ const Map: React.FC<MapProps> = ({ focusedLocation, isScanning, shipments, disru
                     {/* FUTURE ROUTE */}
                     {futureRoute.length >= 2 && shipment.transport_mode === 'Rail' ? (
                       <>
-                        {/* Train Track Glow based on Status */}
+                        {/* Metallic Rail Track (No Glow) */}
                         <Polyline
                           positions={futureRoute as [number, number][]}
-                          color={futureColor}
-                          weight={12}
-                          opacity={0.2}
-                        />
-                        {/* Train Track Base (Solid Dark Iron) */}
-                        <Polyline
-                          positions={futureRoute as [number, number][]}
-                          color="#0f172a"
+                          color="#475569" // Slate 600
                           weight={6}
-                          opacity={0.9}
-                        />
-                        {/* Train Track Cross-Ties (Dashed Silver/Indigo) */}
-                        <Polyline
-                          positions={futureRoute as [number, number][]}
-                          color="#c7d2fe"
-                          weight={4}
-                          opacity={0.9}
-                          dashArray="4, 6"
-                          className="rail-track-anim"
-                        />
-                        {/* Inner Status Line */}
-                        <Polyline
-                          positions={futureRoute as [number, number][]}
-                          color={futureColor}
-                          weight={1.5}
                           opacity={0.8}
                         />
+                        {/* Rail Sleepers Effect */}
+                        <Polyline
+                          positions={futureRoute as [number, number][]}
+                          color="#94a3b8" // Slate 400
+                          weight={4}
+                          opacity={0.6}
+                          dashArray="1, 8"
+                        />
+                        {/* Status Wire (Thin indicator) */}
+                        {(shipment.status !== 'On-Track' || shipment.delay > 0) && (
+                          <Polyline
+                            positions={futureRoute as [number, number][]}
+                            color={futureColor}
+                            weight={1.5}
+                            opacity={0.7}
+                          />
+                        )}
                       </>
                     ) : futureRoute.length >= 2 && (
                       <>

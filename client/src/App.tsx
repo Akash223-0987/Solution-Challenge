@@ -11,6 +11,7 @@ function App() {
   const [isScanning, setIsScanning] = useState(false);
   const [isAddTruckModalOpen, setIsAddTruckModalOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>(null);
+  const [viewMode, setViewMode] = useState<'Road' | 'Rail'>('Road');
 
   // ── Lifted shared data state (fixes duplicate polling) ──
   const [shipments, setShipments] = useState<Shipment[]>([]);
@@ -79,6 +80,8 @@ function App() {
         onOpenAddTruckModal={() => setIsAddTruckModalOpen(true)}
         activeFilter={activeFilter}
         setActiveFilter={setActiveFilter}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
       />
 
       {/* Main Content Area - Phase 1 & 2 */}
@@ -108,6 +111,7 @@ function App() {
             isScanning={isScanning}
             activeFilter={activeFilter}
             setActiveFilter={setActiveFilter}
+            viewMode={viewMode}
           />
         </div>
       </main>

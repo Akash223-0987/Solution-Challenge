@@ -65,7 +65,8 @@ export default function AddTruckModal({ isOpen, onClose }: AddTruckModalProps) {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create simulation truck');
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || 'Failed to create simulation truck');
       }
 
       const result = await response.json();
@@ -74,9 +75,9 @@ export default function AddTruckModal({ isOpen, onClose }: AddTruckModalProps) {
       // Reset form and close modal
       setFormData({ ...INITIAL_FORM, scheduledTime: new Date().toISOString().slice(0, 16) });
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding truck:', error);
-      alert('Failed to add truck. Make sure the backend is running and Supabase is connected.');
+      alert(`Failed to add truck: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }

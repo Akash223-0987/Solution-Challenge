@@ -1,5 +1,5 @@
 import React from 'react';
-import { Truck, AlertTriangle, Clock, Zap, CloudLightning, Car, Anchor, ShieldCheck } from 'lucide-react';
+import { Truck, AlertTriangle, Clock, Zap, CloudLightning, Car, ShieldCheck } from 'lucide-react';
 
 interface SidebarProps {
   setFocusedLocation: (loc: [number, number] | null) => void;

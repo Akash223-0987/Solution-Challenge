@@ -100,7 +100,7 @@ function SchematicMap() {
           <circle cx={c.x} cy={c.y} r={5} fill="#0D0F18" stroke="#2d3748" strokeWidth={1.5}/>
           <circle cx={c.x} cy={c.y} r={2.5} fill="#4a5568"/>
           <text x={c.x + (c.ax === 'end' ? -10 : c.ax === 'start' ? 10 : 0)}
-            y={c.y + c.ay} textAnchor={c.ax}
+            y={c.y + c.ay} textAnchor={c.ax as "start" | "middle" | "end"}
             fill="#4a5568" fontSize={10} fontFamily="'Plus Jakarta Sans',system-ui">
             {c.label}
           </text>

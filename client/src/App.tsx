@@ -2,15 +2,19 @@ import { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import Map from './components/Map';
 import AddTruckModal from './components/AddTruckModal';
+import AuthPage from './components/AuthPage';
+import HeroSection from './components/HeroSection';
 import type { Shipment, Disruption, ActiveFilter } from './types';
 
 const BASE = import.meta.env.VITE_API_URL;
 
 function App() {
+  const [view, setView] = useState<'hero' | 'signin' | 'signup' | 'dashboard'>('hero');
   const [focusedLocation, setFocusedLocation] = useState<[number, number] | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [isAddTruckModalOpen, setIsAddTruckModalOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>(null);
+  const [viewMode, setViewMode] = useState<'Road' | 'Rail'>('Road');
 
   // ── Lifted shared data state (fixes duplicate polling) ──
   const [shipments, setShipments] = useState<Shipment[]>([]);
@@ -66,6 +70,25 @@ function App() {
     return () => clearInterval(t);
   }, []);
 
+  if (view === 'hero') {
+    return (
+      <HeroSection 
+        onEnter={() => setView('dashboard')} 
+        onAuth={(mode) => setView(mode)} 
+      />
+    );
+  }
+
+  if (view === 'signin' || view === 'signup') {
+    return (
+      <AuthPage 
+        initialMode={view} 
+        onAuthComplete={() => setView('dashboard')} 
+        onClose={() => setView('hero')} 
+      />
+    );
+  }
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 font-sans antialiased text-slate-900">
       {/* Sidebar - Phase 1 & 3 */}
@@ -79,6 +102,8 @@ function App() {
         onOpenAddTruckModal={() => setIsAddTruckModalOpen(true)}
         activeFilter={activeFilter}
         setActiveFilter={setActiveFilter}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
       />
 
       {/* Main Content Area - Phase 1 & 2 */}
@@ -108,6 +133,7 @@ function App() {
             isScanning={isScanning}
             activeFilter={activeFilter}
             setActiveFilter={setActiveFilter}
+            viewMode={viewMode}
           />
         </div>
       </main>

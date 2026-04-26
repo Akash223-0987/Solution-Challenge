@@ -91,3 +91,8 @@ body {
 .rail-track-anim {
   animation: move-track 1.5s linear infinite;
 }
+
+/* Greyish Railway Infrastructure Style */
+.rail-tiles {
+  filter: grayscale(100%) brightness(0.8) contrast(1.2) opacity(0.7);
+}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import bgTexture from '../assets/bg-texture2.jpg';
 
 /* ── City nodes ────────────────────────────────────────────────── */
@@ -16,7 +16,7 @@ const CITIES = [
   { id: 'vij', x: 555, y: 550, label: 'Vijayawada', ax: 'start',  ay:   4 },
   { id: 'che', x: 580, y: 635, label: 'Chennai',    ax: 'start',  ay:   4 },
   { id: 'ben', x: 432, y: 648, label: 'Bengaluru',  ax: 'end',    ay:   4 },
-];
+] as const;
 
 /* ── Routes ────────────────────────────────────────────────────── */
 const ROUTES = [
@@ -32,7 +32,7 @@ const ROUTES = [
     d:'M 580,635 Q 510,645 432,648' },
   { id:'r6', color:'#EF4444', status:'critical',  dur:'14s', begin:'4s',
     d:'M 490,88 Q 485,220 478,352' },
-];
+] as const;
 
 /* ── Stats ─────────────────────────────────────────────────────── */
 const STATS = [
@@ -40,19 +40,28 @@ const STATS = [
   { val: 143,  suffix: '',    color: '#F59E0B',  label: 'AT RISK',          sub: 'Delay probability >60%' },
   { val: 38,   suffix: ' min',color: '#fff',     label: 'AVG DELAY',        sub: 'vs 2.4h industry avg' },
   { val: 94,   suffix: '.2%', color: '#00E5A0',  label: 'ROUTE COVERAGE',   sub: 'NH + state highways' },
-];
+] as const;
 
 /* ── CountUp ───────────────────────────────────────────────────── */
-function CountUp({ target, suffix = '', color = '#fff' }: { target: number; suffix?: string; color?: string }) {
+function CountUp({ target, suffix = '', color = '#fff', delay = 0 }: { target: number; suffix?: string; color?: string, delay?: number }) {
   const [v, setV] = useState(0);
+  const [started, setStarted] = useState(false);
+
   useEffect(() => {
+    const t = setTimeout(() => setStarted(true), delay * 1000);
+    return () => clearTimeout(t);
+  }, [delay]);
+
+  useEffect(() => {
+    if (!started) return;
     let n = 0; const step = target / 80;
     const id = setInterval(() => {
       n += step;
       if (n >= target) { setV(target); clearInterval(id); } else setV(Math.floor(n));
     }, 12);
     return () => clearInterval(id);
-  }, [target]);
+  }, [target, started]);
+
   return <span style={{ color }}>{v.toLocaleString()}{suffix}</span>;
 }
 
@@ -91,13 +100,12 @@ function SchematicMap() {
           <circle cx={c.x} cy={c.y} r={5} fill="#0D0F18" stroke="#2d3748" strokeWidth={1.5}/>
           <circle cx={c.x} cy={c.y} r={2.5} fill="#4a5568"/>
           <text x={c.x + (c.ax === 'end' ? -10 : c.ax === 'start' ? 10 : 0)}
-            y={c.y + c.ay} textAnchor={c.ax as string}
+            y={c.y + c.ay} textAnchor={c.ax}
             fill="#4a5568" fontSize={10} fontFamily="'Plus Jakarta Sans',system-ui">
             {c.label}
           </text>
         </g>
       ))}
-
       {/* Animated trucks */}
       {ROUTES.map(r => (
         <g key={'t'+r.id} filter={`url(#${glowId(r.status)})`}>
@@ -374,7 +382,7 @@ export default function HeroSection({ onEnterDashboard, onOpenAuth }: { onEnterD
         {STATS.map((s, i) => (
           <div key={i} style={{ flex:1, padding:'22px 40px', borderRight: i < 3 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
             <div style={{ fontSize:'clamp(24px,2.2vw,36px)', fontWeight:800, letterSpacing:'-1px', lineHeight:1, marginBottom:6 }}>
-              {entered ? <CountUp target={s.val} suffix={s.suffix} color={s.color}/> : '—'}
+              {entered ? <CountUp target={s.val} suffix={s.suffix} color={s.color} delay={1.4}/> : '—'}
             </div>
             <div style={{ color:'#475569', fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:1, marginBottom:3 }}>{s.label}</div>
             <div style={{ color:'#2d3748', fontSize:11 }}>{s.sub}</div>
@@ -382,12 +390,12 @@ export default function HeroSection({ onEnterDashboard, onOpenAuth }: { onEnterD
         ))}
       </div>
 
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         @keyframes pulseD { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(1.5)} }
         @keyframes floatY { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
         @keyframes fadeInLegend { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-      `}</style>
+      `}} />
     </div>
   );
 }

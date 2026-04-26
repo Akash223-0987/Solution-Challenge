@@ -2,11 +2,14 @@ import { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import Map from './components/Map';
 import AddTruckModal from './components/AddTruckModal';
+import AuthPage from './components/AuthPage';
+import HeroSection from './components/HeroSection';
 import type { Shipment, Disruption, ActiveFilter } from './types';
 
 const BASE = import.meta.env.VITE_API_URL;
 
 function App() {
+  const [view, setView] = useState<'hero' | 'signin' | 'signup' | 'dashboard'>('hero');
   const [focusedLocation, setFocusedLocation] = useState<[number, number] | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [isAddTruckModalOpen, setIsAddTruckModalOpen] = useState(false);
@@ -66,6 +69,25 @@ function App() {
     const t = setInterval(() => setClock(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
+
+  if (view === 'hero') {
+    return (
+      <HeroSection 
+        onEnter={() => setView('dashboard')} 
+        onAuth={(mode) => setView(mode)} 
+      />
+    );
+  }
+
+  if (view === 'signin' || view === 'signup') {
+    return (
+      <AuthPage 
+        initialMode={view} 
+        onAuthComplete={() => setView('dashboard')} 
+        onClose={() => setView('hero')} 
+      />
+    );
+  }
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 font-sans antialiased text-slate-900">

@@ -1,5 +1,7 @@
 import React from 'react';
-import { Truck, AlertTriangle, Clock, Zap, CloudLightning, Car, ShieldCheck, Focus, X } from 'lucide-react';
+import { Truck, AlertTriangle, Clock, Zap, CloudLightning, Car, ShieldCheck, Focus, X, LogOut } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import ReactMarkdown from 'react-markdown';
 import type { Shipment, Disruption, ActiveFilter } from '../types';
 import GatiShaktiModal from './GatiShaktiModal';
 
@@ -165,13 +167,23 @@ const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIs
       )}
 
       {/* Header */}
-      <div className="p-6 border-b border-slate-700">
-        <h2 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
-          AETHERLOG
-        </h2>
-        <p className="text-xs text-slate-400 mt-1 uppercase tracking-wider mb-4">India Fleet Monitoring</p>
-        
-        {/* Dashboard Toggle */}
+      <div className="p-6 border-b border-slate-700 flex justify-between items-start">
+        <div>
+          <h2 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
+            AETHERLOG
+          </h2>
+          <p className="text-xs text-slate-400 mt-1 uppercase tracking-wider">India Fleet Monitoring</p>
+        </div>
+        <button 
+          onClick={() => supabase.auth.signOut()}
+          className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-red-400 transition-colors group"
+          title="Sign Out"
+        >
+          <LogOut className="w-4 h-4" />
+        </button>
+      </div>
+      
+      <div className="px-6 pb-4">
         <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-700/50">
           <button
             onClick={() => setViewMode('Road')}
@@ -246,7 +258,7 @@ const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIs
         <div className="mx-4 mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl animate-in fade-in slide-in-from-top-4 duration-500 relative flex flex-col max-h-[400px]">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-blue-400" />
+              <Zap className="w-4 h-4 text-blue-400" />
               <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">AI Route Optimization</span>
             </div>
             <button 
@@ -257,9 +269,9 @@ const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIs
             </button>
           </div>
           <div className="overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-blue-500/30 scrollbar-track-transparent">
-            <p className="text-[11px] text-blue-100 leading-relaxed italic">
-              "{aiExplanation}"
-            </p>
+            <div className="text-[11px] text-blue-100 leading-relaxed prose-ai">
+              <ReactMarkdown>{aiExplanation}</ReactMarkdown>
+            </div>
           </div>
         </div>
       )}

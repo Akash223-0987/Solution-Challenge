@@ -1,0 +1,21 @@
+export const RAIL_CONNECTIONS = [
+  ["New Delhi", "Mumbai CST"], ["New Delhi", "Howrah (Kolkata)"], ["New Delhi", "Chennai Central"],
+  ["Mumbai CST", "Chennai Central"], ["Chennai Central", "Howrah (Kolkata)"], ["Howrah (Kolkata)", "Mumbai CST"],
+  ["New Delhi", "Nagpur Junction"], ["Nagpur Junction", "Mumbai CST"], ["Nagpur Junction", "Chennai Central"], ["Nagpur Junction", "Howrah (Kolkata)"],
+  ["Ahmedabad Junction", "Mumbai CST"], ["Ahmedabad Junction", "New Delhi"], ["Bangalore City", "Chennai Central"],
+  ["Bangalore City", "Mumbai CST"], ["Hyderabad Junction", "Bangalore City"], ["Hyderabad Junction", "Chennai Central"],
+  ["Hyderabad Junction", "Nagpur Junction"], ["Itarsi Junction", "Nagpur Junction"], ["Itarsi Junction", "Jhansi Junction"],
+  ["Jhansi Junction", "New Delhi"], ["Mughalsarai (Pt. Deen Dayal)", "New Delhi"], ["Mughalsarai (Pt. Deen Dayal)", "Howrah (Kolkata)"],
+  ["Mughalsarai (Pt. Deen Dayal)", "Varanasi Junction"], ["Kanpur Central", "New Delhi"], ["Kanpur Central", "Mughalsarai (Pt. Deen Dayal)"],
+  ["Vijayawada Junction", "Chennai Central"], ["Vijayawada Junction", "Hyderabad Junction"], ["Vijayawada Junction", "Nagpur Junction"],
+  ["Pune Junction", "Mumbai CST"], ["Pune Junction", "Bangalore City"], ["Vadodara Junction", "Ahmedabad Junction"],
+  ["Vadodara Junction", "Mumbai CST"], ["Patna Junction", "Mughalsarai (Pt. Deen Dayal)"],
+  ["Agartala Junction", "Guwahati Junction"],
+  ["Guwahati Junction", "New Jalpaiguri"],
+  ["New Jalpaiguri", "Malda Town"],
+  ["Malda Town", "Howrah (Kolkata)"],
+  ["Malda Town", "Patna Junction"],
+  ["Howrah (Kolkata)", "Bhubaneswar"], ["Bhubaneswar", "Visakhapatnam"], ["Visakhapatnam", "Vijayawada Junction"],
+  ["Jabalpur Junction", "Itarsi Junction"], ["Jabalpur Junction", "Allahabad (Prayagraj)"], ["Lucknow Charbagh", "Kanpur Central"],
+  ["Jaipur Junction", "New Delhi"], ["Jaipur Junction", "Ahmedabad Junction"], ["Surat", "Mumbai CST"], ["Surat", "Ahmedabad Junction"]
+];

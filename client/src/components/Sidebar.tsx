@@ -13,11 +13,13 @@ interface SidebarProps {
   fetchError: boolean;
   activeFilter: ActiveFilter;
   setActiveFilter: (f: ActiveFilter) => void;
+  viewMode: 'Road' | 'Rail';
+  setViewMode: (mode: 'Road' | 'Rail') => void;
 }
 
 const BASE = import.meta.env.VITE_API_URL;
 
-const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIsScanning, onOpenAddTruckModal, shipments, disruptions, fetchError, activeFilter, setActiveFilter }) => {
+const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIsScanning, onOpenAddTruckModal, shipments, disruptions, fetchError, activeFilter, setActiveFilter, viewMode, setViewMode }) => {
   const [aiExplanation, setAiExplanation] = React.useState<string | null>(null);
 
   // ── Gati Shakti preview modal state ──
@@ -63,7 +65,13 @@ const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIs
       });
       const data = await response.json();
       console.log('AI Optimization Result:', data.message);
-      if (data.success) setAiExplanation(data.aiExplanation);
+      if (data.success) {
+        setAiExplanation(data.aiExplanation);
+        // Automatically switch to Rail view if shipments were moved to rail
+        if (data.railCount > 0) {
+          setViewMode('Rail');
+        }
+      }
     } catch (error) {
       console.error('Optimization failed:', error);
     } finally {
@@ -118,6 +126,12 @@ const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIs
                 onClick={() => {
                   setFocusedLocation(ship.location);
                   setFilterModal(null);
+                  // Auto-switch view mode based on the shipment clicked
+                  if (ship.transport_mode === 'Rail') {
+                    setViewMode('Rail');
+                  } else {
+                    setViewMode('Road');
+                  }
                 }}
                 className="p-3 bg-slate-800/80 rounded-lg border border-slate-700 hover:border-blue-500/50 transition-all cursor-pointer group"
               >
@@ -155,7 +169,29 @@ const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIs
         <h2 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
           AETHERLOG
         </h2>
-        <p className="text-xs text-slate-400 mt-1 uppercase tracking-wider">India Fleet Monitoring</p>
+        <p className="text-xs text-slate-400 mt-1 uppercase tracking-wider mb-4">India Fleet Monitoring</p>
+        
+        {/* Dashboard Toggle */}
+        <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-700/50">
+          <button
+            onClick={() => setViewMode('Road')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-xs font-bold transition-all ${
+              viewMode === 'Road' ? 'bg-slate-700 text-white shadow-sm border border-slate-600' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+            }`}
+          >
+            <Truck className="w-3.5 h-3.5" />
+            Road Fleet
+          </button>
+          <button
+            onClick={() => setViewMode('Rail')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-xs font-bold transition-all ${
+              viewMode === 'Rail' ? 'bg-indigo-600 text-white shadow-[0_0_15px_rgba(79,70,229,0.5)] border border-indigo-400' : 'text-slate-400 hover:text-indigo-300 hover:bg-indigo-900/30'
+            }`}
+          >
+            <span className="text-[14px] leading-none">🚂</span>
+            Rail Network
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -183,7 +219,10 @@ const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIs
         </div>
 
         <div 
-          onClick={() => handleStatClick("Rail Transshipments", shipments.filter(s => s.transport_mode === 'Rail'))}
+          onClick={() => {
+            setViewMode('Rail');
+            handleStatClick("Rail Transshipments", shipments.filter(s => s.transport_mode === 'Rail'));
+          }}
           className="bg-slate-800 p-3 rounded-xl border border-slate-700 hover:border-indigo-500 transition-colors group cursor-pointer"
         >
           <div className="flex items-center justify-between mb-1">
@@ -204,14 +243,24 @@ const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIs
 
       {/* AI Reasoning Panel */}
       {aiExplanation && (
-        <div className="mx-4 mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl animate-in fade-in slide-in-from-top-4 duration-500">
-          <div className="flex items-center gap-2 mb-2">
-            <ShieldCheck className="w-4 h-4 text-blue-400" />
-            <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">AI Route Optimization</span>
+        <div className="mx-4 mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl animate-in fade-in slide-in-from-top-4 duration-500 relative flex flex-col max-h-[400px]">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-blue-400" />
+              <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">AI Route Optimization</span>
+            </div>
+            <button 
+              onClick={() => setAiExplanation(null)}
+              className="p-1 hover:bg-blue-500/20 rounded-md transition-colors text-blue-400"
+            >
+              <X className="w-3 h-3" />
+            </button>
           </div>
-          <p className="text-xs text-blue-100 leading-relaxed italic">
-            "{aiExplanation}"
-          </p>
+          <div className="overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-blue-500/30 scrollbar-track-transparent">
+            <p className="text-[11px] text-blue-100 leading-relaxed italic">
+              "{aiExplanation}"
+            </p>
+          </div>
         </div>
       )}
 
@@ -235,7 +284,7 @@ const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIs
         </div>
         
         {/* Real-time Global Disruptions (Storms, Traffic, etc) */}
-        {disruptions.map((dis) => (
+        {viewMode === 'Road' && disruptions.map((dis) => (
           <div 
             key={`dis-${dis.id}`}
             onClick={() => setFocusedLocation(dis.location)}
@@ -253,7 +302,10 @@ const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIs
         ))}
 
         {/* Risk Badges for Trucks */}
-        {shipments.filter(s => (s.status !== 'On-Track' || (s.delay || 0) > 20)).map((ship) => (
+        {shipments.filter(s => 
+          (s.status !== 'On-Track' || (s.delay || 0) > 20) &&
+          (viewMode === 'Rail' ? s.transport_mode === 'Rail' : s.transport_mode !== 'Rail')
+        ).map((ship) => (
             <div
               key={ship.id}
               onClick={() => {
@@ -294,7 +346,8 @@ const Sidebar: React.FC<SidebarProps> = ({ setFocusedLocation, isScanning, setIs
             </div>
         ))}
 
-        {disruptions.length === 0 && shipments.filter(s => s.status !== 'On-Track').length === 0 && (
+        {(viewMode === 'Rail' || disruptions.length === 0) && 
+         shipments.filter(s => s.status !== 'On-Track' && (viewMode === 'Rail' ? s.transport_mode === 'Rail' : s.transport_mode !== 'Rail')).length === 0 && (
           <div className="text-center py-10">
             <ShieldCheck className="w-8 h-8 text-slate-800 mx-auto mb-2 opacity-20" />
             <p className="text-[10px] text-slate-600 uppercase tracking-widest">No Critical Risks Detected</p>

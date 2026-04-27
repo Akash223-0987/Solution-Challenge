@@ -1,144 +1,228 @@
-# AetherLog 🚛 — AI-Powered Logistics Intelligence Dashboard
+<div align="center">
 
-> A real-time, full-stack fleet monitoring system that uses constraint-aware AI to automatically detect disruptions and re-route heavy vehicles across Indian national highways.
+# ⚡ AetherLog Logistics OS
+### *India's AI-Driven Multimodal Command Center*
+
+[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Vercel-black?style=for-the-badge)](https://aetherlog-five.vercel.app)
+[![Backend](https://img.shields.io/badge/🔧_Backend-Render-blueviolet?style=for-the-badge)](https://aetherlog-backend-2.onrender.com)
+[![Built with Gemini](https://img.shields.io/badge/AI-Google_Gemini_1.5_Flash-4285F4?style=for-the-badge&logo=google)](https://ai.google.dev/)
+[![Auth](https://img.shields.io/badge/Auth-Google_OAuth-EA4335?style=for-the-badge&logo=google)](https://supabase.com)
+
+> 🏆 **Submitted for Google Cloud x PM Gati Shakti Hackathon 2025**
+
+**AetherLog** is a high-fidelity Digital Twin and AI-powered command center for India's logistics ecosystem. It bridges the gap between road and rail networks, offering real-time predictive risk intelligence and multimodal route optimization — fully aligned with the **PM Gati Shakti National Master Plan**.
+
+</div>
 
 ---
 
-## 🏗️ Project Architecture
+## 🎯 The Problem
+
+India's logistics sector accounts for **14% of GDP** — one of the highest costs in the world. The root causes:
+
+- 📦 Fragmented road and rail operations with no unified visibility
+- ⚠️ Reactive disruption management (floods, landslides, traffic) instead of predictive
+- 🌍 No automated ESG / CO2 tracking for freight sustainability
+- 🗺️ Lack of Gati Shakti-aligned multimodal pivoting tools for operators
+- 🔐 No enterprise-grade, multi-tenant platform for fleet isolation
+
+---
+
+## 💡 The Solution
+
+AetherLog provides a **Unified Logistics Intelligence OS** that enables:
+
+- Real-time fleet simulation on a live map of India
+- AI-powered rerouting with automatic **Road → Rail transshipment pivots**
+- Multi-tenant data isolation (each logistics firm sees only its own data)
+- End-to-end ESG impact tracking per route optimization
+
+---
+
+## 🖥️ Live Demo Preview
+
+| Feature | Preview |
+|---|---|
+| 🗺️ **Real-time Fleet Map** | Live truck tracking with OSRM road geometry |
+| 📡 **Disruption Feed** | AI-generated risk briefs for every impacted truck |
+| 🚂 **Rail Network View** | Gati Shakti corridor visualization with hub pivots |
+| 🤖 **AI Route Intelligence** | Natural-language briefings powered by Google Gemini |
+| 🎯 **Hackathon Demo Presets** | 5 fixed routes (On-Track, At Risk, Critical) for instant demo |
+
+---
+
+## 🚀 Key Features
+
+### 1. 🤖 Triple-Layer AI Resilience
+AetherLog never goes dark. We built a **3-tier AI failover system**:
 
 ```
-solution-challenge/
-├── client/          # React + Vite + Leaflet frontend
-└── backend/         # Node.js + Express API server
+Request → Google Gemma 4 (OpenRouter) [PRIMARY]
+       → GPT-OSS 120B (OpenRouter)   [SECONDARY FALLBACK]
+       → Google Gemini 1.5 Flash     [ULTIMATE BACKUP]
+       → Static fallback message     [LAST RESORT]
 ```
 
-**Tech Stack:**
+This ensures our AI-driven risk analysis is available 24/7 even during API outages.
 
-| Layer              | Technology                                        |
-| ------------------ | ------------------------------------------------- |
-| **Frontend** | React 18, TypeScript, Vite, Leaflet, Tailwind CSS |
-| **Backend**  | Node.js 24, Express 5                             |
-| **Database** | Supabase (PostgreSQL)                             |
-| **Map**      | React-Leaflet + CARTO dark basemap                |
+### 2. 🗺️ PM Gati Shakti Multimodal Intelligence
+When a road shipment is flagged **Critical**, the AI:
+1. Identifies the nearest **Gati Shakti Rail Hub** within 600km
+2. Calculates 3 alternative transshipment options
+3. Computes **Time Saved**, **Cost Reduction**, and **CO2 Avoided** for each
+4. Ranks options and highlights the AI-recommended best route
+
+### 3. 🧭 Geographic Routing Intelligence
+- **100+ Indian cities** supported via a local geocoding dictionary
+- **Bangladesh Avoidance Logic:** Automatically forces waypoints through the **Siliguri Corridor (Chicken's Neck)** for North-East India routes to avoid routing through Bangladesh
+- **OSRM Integration:** Real road geometry for accurate route visualization
+
+### 4. 🔐 Multi-Tenant Data Isolation
+- Powered by **Google OAuth via Supabase Auth**
+- Every truck, route, and disruption is scoped to a unique `user_id`
+- Logging in with a different account shows a completely separate simulation board
+
+### 5. 🎯 Hackathon Demo Presets
+One-click deployment of 5 predefined routes for instant presentation:
+
+| Preset | Route | Status |
+|---|---|---|
+| 🟢 Golden Quad | Mumbai → Delhi | On-Track |
+| 🟢 Coastal Link | Chennai → Visakhapatnam | On-Track |
+| 🔴 Siliguri Corridor | Kolkata → Guwahati | Critical (Landslide) |
+| 🟡 Industrial Spine | Delhi → Bengaluru | At Risk (Traffic Gridlock) |
+| 🔴 Energy Hub | Nagpur → Mumbai | Critical (Highway Blockade) |
 
 ---
 
-## ✨ Features
+## 🏗️ Architecture
 
-- **Live Map Dashboard** — Real-time truck tracking with 3-second auto-polling
-- **Automated Risk Classification** — Backend auto-flags trucks as `At Risk` or `Critical` based on weight + terrain constraints
-- **Disruption Engine** — Weather ⛈️ and Traffic 🚧 events appear on the map live; nearby trucks are immediately flagged
-- **AI Re-routing Algorithm** — Geometric perpendicular bypass routing that finds the *minimum detour* around any disruption
-- **Simulation Mode** — One-click truck dispatch from 10 real Indian highway routes (Mumbai→Delhi, Bengaluru→Hyderabad, etc.)
-- **Auto Disruption Spawn** — When a truck is dispatched, a disruption auto-spawns on its path for immediate AI demo
+```
+┌─────────────────────────────────────────────────────────┐
+│                     CLIENT (Vercel)                      │
+│   React + TypeScript + Leaflet Map + Tailwind CSS        │
+│   ┌────────────┐ ┌──────────────┐ ┌────────────────┐    │
+│   │  Fleet Map │ │ Sidebar / AI │ │  Gati Shakti   │    │
+│   │ (Leaflet)  │ │     Feed     │ │  Rail Network  │    │
+│   └────────────┘ └──────────────┘ └────────────────┘    │
+└─────────────────────────┬───────────────────────────────┘
+                           │ REST API
+┌─────────────────────────▼───────────────────────────────┐
+│                   BACKEND (Render)                       │
+│              Node.js + Express.js                        │
+│  ┌──────────┐ ┌──────────┐ ┌─────────┐ ┌────────────┐  │
+│  │   OSRM   │ │ OpenRtr  │ │ Gemini  │ │  Supabase  │  │
+│  │ Routing  │ │   (AI)   │ │  (AI)   │ │  (Postgres)│  │
+│  └──────────┘ └──────────┘ └─────────┘ └────────────┘  │
+└─────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## 🚀 Getting Started
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|---|---|
+| **Frontend** | React 18, TypeScript, Vite |
+| **Map** | Leaflet.js + OSRM (Open Source Routing Machine) |
+| **Backend** | Node.js, Express.js |
+| **Database** | Supabase (PostgreSQL) with Row Level Security |
+| **Auth** | Google OAuth via Supabase Auth |
+| **AI (Primary)** | OpenRouter → Google Gemma 4 31B |
+| **AI (Backup)** | Google Gemini 1.5 Flash |
+| **Deployment** | Vercel (Frontend) + Render (Backend) |
+| **Styling** | Tailwind CSS + Lucide Icons |
+
+---
+
+## ⚙️ Local Setup
 
 ### Prerequisites
-
-- Node.js v18 or higher
-- A [Supabase](https://supabase.com) account and project
+- Node.js v18+
+- A Supabase project
+- OpenRouter API Key
+- Google Gemini API Key (from [aistudio.google.com](https://aistudio.google.com))
 
 ### 1. Clone the repository
-
 ```bash
-git clone https://github.com/your-username/solution-challenge.git
-cd solution-challenge
+git clone https://github.com/Akash223-0987/Solution-Challenge.git
+cd aetherlog
 ```
 
-### 2. Set up the Database (Supabase)
-
-Run the following SQL in your Supabase SQL Editor:
-
-```sql
--- Shipments table
-CREATE TABLE shipments (
-  id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-  truck_id TEXT,
-  origin TEXT,
-  destination TEXT,
-  weight FLOAT8,
-  terrain_type TEXT,
-  status TEXT DEFAULT 'On-Track',
-  location FLOAT8[],
-  route FLOAT8[][]
-);
-
--- Disruptions table
-CREATE TABLE disruptions (
-  id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-  type TEXT NOT NULL,
-  severity TEXT NOT NULL,
-  location FLOAT8[] NOT NULL,
-  description TEXT
-);
-```
-
-### 3. Configure the Backend
-
+### 2. Backend setup
 ```bash
 cd backend
-cp .env.example .env
-# Edit .env and fill in your Supabase URL and Service Role Key
 npm install
-npm run dev
 ```
 
-### 4. Start the Frontend
+Create a `.env` file in `/backend`:
+```env
+PORT=8082
+SUPABASE_URL=your_supabase_url
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+OPENROUTER_API_KEY=your_openrouter_key
+GEMINI_API_KEY=your_gemini_key
+```
 
+Start the backend:
+```bash
+npm start
+```
+
+### 3. Frontend setup
 ```bash
 cd client
 npm install
+```
+
+Create a `.env.development` file in `/client`:
+```env
+VITE_API_URL=http://localhost:8082
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_anon_key
+```
+
+Start the frontend:
+```bash
 npm run dev
 ```
 
-The app will be running at **http://localhost:5173**
+---
+
+## 📊 Impact Metrics
+
+| Metric | Target |
+|---|---|
+| 🚛 **Logistics Cost Reduction** | Up to 18% via multimodal shifting |
+| ⏱️ **Average Time Saving** | 2–4 hours per critical reroute |
+| 🌿 **CO2 Reduction** | 30–45% by preferring Rail over Road |
+| 🔐 **API Uptime** | 99.9% via triple-layer AI redundancy |
 
 ---
 
-## 🗺️ How the AI Works
+## 🌐 Google Technologies Used
 
-When you click **"Run AI Re-routing"**, the backend:
-
-1. Fetches all active shipments and disruptions from Supabase
-2. For each truck near a disruption (within ~300km), it runs `computeBypassWaypoint()`:
-   - Calculates the truck's direction vector (`current → destination`)
-   - Rotates 90° to find the perpendicular direction
-   - Determines which *side* of the route the disruption is on via cross-product
-   - Places a bypass point ~65km off to the *opposite* side
-3. Updates the truck's route in the database: `[current → bypass → destination]`
-4. Clears all active disruptions (threat resolved)
-5. The React map auto-polls and visually shows the bent dashed-line detour within 3 seconds
+| Technology | Role |
+|---|---|
+| **Google Gemini 1.5 Flash** | Ultimate AI fallback for route intelligence & risk analysis |
+| **Google OAuth** | Secure, enterprise-grade user authentication |
+| **Google Fonts** | Premium typography (Inter, Outfit, JetBrains Mono) |
+| **Google Cloud Console** | API key management and project credentials |
 
 ---
 
-## 📋 API Reference
+## 👥 Team
 
-| Method     | Endpoint             | Description                                         |
-| ---------- | -------------------- | --------------------------------------------------- |
-| `GET`    | `/api/shipments`   | Fetch all shipments with disruption proximity check |
-| `POST`   | `/api/shipments`   | Create a new shipment (auto-classifies risk status) |
-| `GET`    | `/api/disruptions` | Fetch all active disruptions                        |
-| `POST`   | `/api/disruptions` | Create a new disruption event                       |
-| `DELETE` | `/api/disruptions` | Clear all disruptions (post-AI resolution)          |
-| `POST`   | `/api/optimize`    | Trigger AI re-routing for all affected trucks       |
+Built with ❤️ for the **Google Cloud x PM Gati Shakti Hackathon 2025**
+
+> *"AetherLog isn't just a dashboard. It's a decision engine that transforms Indian logistics from a cost center into a competitive advantage."*
 
 ---
 
-## 🛣️ Roadmap
+<div align="center">
 
-See [`ROADMAP.md`](./ROADMAP.md) for upcoming features including Gemini AI integration, Google Routes API real road polylines, and production deployment.
+**⭐ If you found this useful, please star the repository!**
 
----
+[![GitHub Stars](https://img.shields.io/github/stars/Akash223-0987/Solution-Challenge?style=social)](https://github.com/Akash223-0987/Solution-Challenge)
 
-## 🔐 Environment Variables
-
-| Variable                      | Description                              |
-| ----------------------------- | ---------------------------------------- |
-| `PORT`                      | Backend server port (default: 8081)      |
-| `SUPABASE_URL`              | Your Supabase project URL                |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (admin access) |
-
-> ⚠️ **Never commit your `.env` file.** Use `.env.example` as a template.
+</div>

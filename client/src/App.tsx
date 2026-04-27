@@ -5,7 +5,7 @@ import AddTruckModal from './components/AddTruckModal';
 import AuthPage from './components/AuthPage';
 import HeroSection from './components/HeroSection';
 import WeatherWidget from './components/WeatherWidget';
-import GatiShaktiModal from './components/GatiShaktiModal';
+import GatiShaktiModal, { type Suggestion } from './components/GatiShaktiModal';
 import { supabase } from './lib/supabase';
 import type { Shipment, Disruption, ActiveFilter } from './types';
 
@@ -38,7 +38,7 @@ function App() {
 
   // ── Gati Shakti Optimization State ──
   const [gatiModalOpen, setGatiModalOpen] = useState(false);
-  const [gatiSuggestions, setGatiSuggestions] = useState<any[]>([]);
+  const [gatiSuggestions, setGatiSuggestions] = useState<Suggestion[]>([]);
   const [isApplyingRoutes, setIsApplyingRoutes] = useState(false);
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
 
@@ -102,7 +102,7 @@ function App() {
           setViewMode('Rail');
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Optimization failed:', error);
     } finally {
       setIsApplyingRoutes(false);
@@ -129,7 +129,7 @@ function App() {
       } else {
         await applyOptimization();
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Preview failed:', error);
       await applyOptimization();
     }
@@ -148,7 +148,6 @@ function App() {
       <AuthPage 
         initialMode={view} 
         onAuthComplete={() => setView('dashboard')} 
-        onClose={() => setView('hero')} 
       />
     );
   }

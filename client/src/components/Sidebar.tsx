@@ -25,7 +25,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, setFocusedLocation, isScanning, onRunOptimization, aiExplanation, onClearAiExplanation, onOpenAddTruckModal, shipments, disruptions, fetchError, activeFilter, setActiveFilter, viewMode, setViewMode }) => {
 
-  const [filterModal, setFilterModal] = React.useState<{ title: string, list: any[] } | null>(null);
+  const [filterModal, setFilterModal] = React.useState<{ title: string, list: Shipment[] } | null>(null);
 
   const activeCount = shipments.length;
   const atRiskCount = shipments.filter(s => s.status === 'Critical' || s.status === 'At Risk' || s.status === 'Delayed' || (s.delay || 0) > 30).length;
@@ -33,7 +33,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, setFocusedLocation, 
   const totalDelay = shipments.reduce((acc, s) => acc + (s.delay || 0), 0);
   const avgDelay = activeCount > 0 ? Math.round(totalDelay / activeCount) : 0;
 
-  const handleStatClick = (title: string, list: any[]) => {
+  const handleStatClick = (title: string, list: Shipment[]) => {
     setFilterModal({ title, list });
   };
 

@@ -16,7 +16,7 @@ interface TrainInfo {
   wagon_type: string;
 }
 
-interface HubOption {
+export interface HubOption {
   rank: number;
   isRecommended: boolean;
   originHub: string;
@@ -35,7 +35,7 @@ interface HubOption {
   co2SavingKg: number;
 }
 
-interface Suggestion {
+export interface Suggestion {
   shipmentId: string | number;
   truckId: string;
   origin: string;

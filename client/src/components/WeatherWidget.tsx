@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Cloud, CloudRain, Sun, Wind, AlertCircle, 
-  CloudLightning, X, Newspaper, Thermometer,
-  CloudFog, Waves, Zap, ChevronRight
+  Cloud, CloudRain, Sun, Wind, 
+  CloudLightning, X, Newspaper, 
+  CloudFog, Zap
 } from 'lucide-react';
 
 interface WeatherData {

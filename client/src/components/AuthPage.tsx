@@ -5,12 +5,11 @@ import './AuthPage.css';
 interface AuthPageProps {
   initialMode: 'signin' | 'signup';
   onAuthComplete: () => void;
-  onClose: () => void;
 }
 
 import { AetherLogLogo } from './AetherLogLogo';
 
-const AuthPage: React.FC<AuthPageProps> = ({ initialMode, onAuthComplete, onClose }) => {
+const AuthPage: React.FC<AuthPageProps> = ({ initialMode, onAuthComplete }) => {
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -47,8 +46,9 @@ const AuthPage: React.FC<AuthPageProps> = ({ initialMode, onAuthComplete, onClos
         if (signInError) throw signInError;
         onAuthComplete();
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred during authentication.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'An error occurred during authentication.';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -63,8 +63,8 @@ const AuthPage: React.FC<AuthPageProps> = ({ initialMode, onAuthComplete, onClos
         },
       });
       if (error) throw error;
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) setError(err.message);
     }
   };
 

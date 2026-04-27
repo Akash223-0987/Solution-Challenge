@@ -336,7 +336,7 @@ const Map: React.FC<MapProps> = ({ focusedLocation, isScanning, shipments, disru
   const [animatedPositions, setAnimatedPositions] = useState<Record<string | number, { pos: [number, number], rotation: number, progress: number }>>({});
 
   // Persistent clock — never reset so trucks don't snap on data re-poll
-  const animStartRef = useRef<number>(Date.now());
+  const animStartRef = useRef<number>(0);
   // Keep latest shipments available inside the RAF loop without restarting it
   const shipmentsRef = useRef<Shipment[]>(shipments);
   useEffect(() => { shipmentsRef.current = shipments; }, [shipments]);
@@ -344,6 +344,9 @@ const Map: React.FC<MapProps> = ({ focusedLocation, isScanning, shipments, disru
   // Movement Simulation Engine: runs permanently; reads shipmentsRef so it
   // never restarts (and never causes position snapping) when data is polled.
   useEffect(() => {
+    if (animStartRef.current === 0) {
+      animStartRef.current = Date.now();
+    }
     let animationFrameId: number;
 
     const animate = () => {
@@ -390,7 +393,6 @@ const Map: React.FC<MapProps> = ({ focusedLocation, isScanning, shipments, disru
 
     animationFrameId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animationFrameId);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // ← empty deps: loop starts once at mount, reads data via ref
 
   const indiaCenter: [number, number] = [20.5937, 78.9629];
@@ -476,7 +478,7 @@ const Map: React.FC<MapProps> = ({ focusedLocation, isScanning, shipments, disru
             />
             {/* Vector-based High-Precision Rail Network */}
             <GeoJSON 
-              data={railwayData as any} 
+              data={railwayData as unknown as import('geojson').GeoJsonObject} 
               style={{
                 color: '#00E5A0',
                 weight: 0.8,

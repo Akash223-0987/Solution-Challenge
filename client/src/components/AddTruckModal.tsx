@@ -75,9 +75,10 @@ export default function AddTruckModal({ isOpen, onClose }: AddTruckModalProps) {
       // Reset form and close modal
       setFormData({ ...INITIAL_FORM, scheduledTime: new Date().toISOString().slice(0, 16) });
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to add truck';
       console.error('Error adding truck:', error);
-      alert(`Failed to add truck: ${error.message}`);
+      alert(`Failed to add truck: ${message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -198,7 +199,7 @@ export default function AddTruckModal({ isOpen, onClose }: AddTruckModalProps) {
             <select 
               name="terrainType"
               value={formData.terrainType}
-              onChange={handleChange as any}
+              onChange={handleChange}
               className="w-full px-5 py-3.5 bg-black/50 border border-white/10 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-rose-500/30 transition-all shadow-inner appearance-none relative cursor-pointer"
             >
               {TERRAIN_TYPES.map(type => (

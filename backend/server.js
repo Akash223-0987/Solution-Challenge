@@ -24,6 +24,7 @@ process.on('unhandledRejection', (reason, promise) => {
 console.log('📡 Environment Check:');
 console.log(`   - Supabase URL: ${process.env.SUPABASE_URL ? '✅ Loaded' : '❌ Missing'}`);
 console.log(`   - OpenRouter Key: ${process.env.OPENROUTER_API_KEY ? '✅ Loaded' : '❌ Missing'}`);
+console.log(`   - Gemini API Key: ${process.env.GEMINI_API_KEY ? '✅ Loaded' : '❌ Missing'}`);
 
 const app = express();
 app.use(express.json());
@@ -374,9 +375,9 @@ app.post('/api/optimize', async (req, res) => {
                 method: "POST",
                 headers: {
                   "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-                  "Content-Type": "application/json",
-                  "HTTP-Referer": "http://localhost:5173",
-                  "X-Title": "AetherLog Dashboard"
+                  "HTTP-Referer": "https://aetherlog.vercel.app",
+                  "X-Title": "AetherLog Logistics OS",
+                  "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
                   model: modelName,
@@ -403,21 +404,51 @@ app.post('/api/optimize', async (req, res) => {
               }
             };
 
+            const fetchGeminiFallback = async () => {
+              if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY Missing");
+              
+              const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+              const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{
+                    parts: [{ text: `${systemMsg}\n\nUSER PROMPT: ${aiPrompt}` }]
+                  }],
+                  generationConfig: {
+                    maxOutputTokens: 150,
+                    temperature: 0.7
+                  }
+                })
+              });
+
+              if (!response.ok) throw new Error(`Gemini Error ${response.status}`);
+              const data = await response.json();
+              return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "AI Analysis unavailable.";
+            };
+
             try {
               console.log(`🤖 AI MISSION for TRK-${shipment.truck_id} [PRIMARY: ${AI_MODEL_STABLE}]`);
               const text = await fetchOpenRouter(AI_MODEL_STABLE);
               console.log(`📡 AI RESPONSE (PRIMARY):`, text);
               return text;
             } catch (err) {
-              console.warn(`⚠️ Primary AI Failed (${err.message}). Attempting FALLBACK...`);
+              console.warn(`⚠️ Primary AI Failed (${err.message}). Attempting OPENROUTER FALLBACK...`);
               try {
-                console.log(`🤖 AI MISSION for TRK-${shipment.truck_id} [FALLBACK: ${AI_MODEL_FALLBACK}]`);
+                console.log(`🤖 AI MISSION for TRK-${shipment.truck_id} [OR-FALLBACK: ${AI_MODEL_FALLBACK}]`);
                 const fallbackText = await fetchOpenRouter(AI_MODEL_FALLBACK);
-                console.log(`📡 AI RESPONSE (FALLBACK):`, fallbackText);
+                console.log(`📡 AI RESPONSE (OR-FALLBACK):`, fallbackText);
                 return fallbackText;
               } catch (fallbackErr) {
-                console.error("❌ Both AI Models Failed:", fallbackErr.message);
-                return "AI Intelligence service temporarily unavailable. Protocol: Manual Routing.";
+                console.warn(`⚠️ OpenRouter Totally Failed. Attempting GOOGLE GEMINI BACKUP...`);
+                try {
+                  const geminiText = await fetchGeminiFallback();
+                  console.log(`📡 AI RESPONSE (GEMINI BACKUP):`, geminiText);
+                  return geminiText;
+                } catch (geminiErr) {
+                  console.error("❌ All AI Models (OR + Gemini) Failed:", geminiErr.message);
+                  return "AI Intelligence service temporarily unavailable. Protocol: Manual Routing.";
+                }
               }
             }
           })();

@@ -133,16 +133,23 @@ app.post('/api/shipments', async (req, res) => {
 
   console.log(`🚚 Creating Shipment: ${truck_id} (${origin} -> ${destination})`);
 
-  // Decide Disruption first to avoid 'On-Track' flickering
+  // Updated distribution for 6 trucks: 2 On-Track (33%), 1 At Risk (17%), 3 Critical (50%)
   const disruptionChance = Math.random();
   let initialDelay = 0;
   let status = 'On-Track';
   let disruptionToInsert = null;
 
-  if (disruptionChance > 0.15) { // 85% chance of disruption
+  if (disruptionChance > 0.33) { // 67% chance of some issue
+    let severity = 'Medium';
+    if (disruptionChance > 0.50) {
+      severity = 'Critical';
+    } else {
+      // Small range (0.33 to 0.50) for 'At Risk' (Medium/High)
+      severity = Math.random() > 0.5 ? 'High' : 'Medium';
+    }
+    
     const type = ["Thunderstorm", "Traffic Gridlock", "National Highway Blockade", "Landslide", "Bridge Maintenance"][Math.floor(Math.random() * 5)];
     const disLocation = route[Math.floor(route.length * 0.4)]; 
-    const severity = disruptionChance > 0.35 ? 'Critical' : (disruptionChance > 0.20 ? 'High' : 'Medium');
     initialDelay = severity === 'Critical' ? 210 : (severity === 'High' ? 60 : 25);
     status = severity === 'Critical' ? 'Critical' : 'At Risk';
 

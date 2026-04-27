@@ -1,1 +1,0 @@
-import fs from 'fs'; import { CITY_COORDS } from './cities.js'; const ts = fs.readFileSync('../client/src/data/cities.ts', 'utf8'); const matches = ts.match(/"[^"]+"/g); if (matches) { const tsCities = matches.map(s => s.replace(/"/g, '')); const missing = tsCities.filter(c => !CITY_COORDS[c]); console.log(missing.join(', ')); }

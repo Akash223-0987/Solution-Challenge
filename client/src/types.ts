@@ -3,7 +3,7 @@
 // Active map filter — isolates a single shipment or rail hub
 export type ActiveFilter =
   | { type: 'shipment'; id: string | number; label: string }
-  | { type: 'hub'; name: string; coords: [number, number] }
+  | { type: 'hub'; label: string; coords: [number, number] }
   | null;
 
 export interface Shipment {

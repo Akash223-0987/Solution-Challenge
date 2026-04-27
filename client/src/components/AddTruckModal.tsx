@@ -84,22 +84,22 @@ export default function AddTruckModal({ isOpen, onClose }: AddTruckModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md transition-all duration-300">
+    <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/90 backdrop-blur-md transition-all duration-300">
       <div 
-        className="w-full max-w-xl p-8 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10 bg-slate-900/90 backdrop-blur-2xl animate-modal-fade-in relative overflow-hidden"
+        className="w-full max-w-xl p-8 rounded-3xl shadow-[0_40px_100px_rgba(0,0,0,0.8)] border border-white/10 bg-[#0A0A0A] backdrop-blur-2xl animate-modal-fade-in relative overflow-hidden"
       >
         {/* Background Decorative Gradient */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-3xl rounded-full -mr-16 -mt-16"></div>
-        <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/10 blur-3xl rounded-full -ml-16 -mb-16"></div>
+        <div className="absolute top-0 right-0 w-32 h-32 bg-[#00E5A0]/10 blur-3xl rounded-full -mr-16 -mt-16"></div>
+        <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/5 blur-3xl rounded-full -ml-16 -mb-16"></div>
 
         <div className="flex justify-between items-center mb-8 relative z-10">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-emerald-500/20 rounded-2xl border border-emerald-500/30">
-              <Truck className="w-6 h-6 text-emerald-400" />
+            <div className="p-3 bg-[#00E5A0]/10 rounded-2xl border border-[#00E5A0]/20">
+              <Truck className="w-6 h-6 text-[#00E5A0]" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-white tracking-tight">Deploy Simulation</h2>
-              <p className="text-xs text-slate-400 font-medium uppercase tracking-widest">New Fleet Asset</p>
+              <h2 className="text-2xl font-black text-white tracking-tight">Deploy Asset</h2>
+              <p className="text-[10px] text-white/40 font-bold uppercase tracking-[0.2em]">India Fleet OS</p>
             </div>
           </div>
           <button 
@@ -115,8 +115,8 @@ export default function AddTruckModal({ isOpen, onClose }: AddTruckModalProps) {
         
         <form onSubmit={handleSubmit} className="relative z-10 grid grid-cols-2 gap-6">
           <div className="col-span-2">
-            <label className="flex items-center gap-2 text-sm font-semibold text-slate-300 mb-2 ml-1">
-              <Anchor className="w-4 h-4 text-emerald-500" />
+            <label className="flex items-center gap-2 text-xs font-bold text-white/50 uppercase tracking-widest mb-2 ml-1">
+              <Anchor className="w-4 h-4 text-[#00E5A0]" />
               Truck ID / Number
             </label>
             <input 
@@ -126,7 +126,7 @@ export default function AddTruckModal({ isOpen, onClose }: AddTruckModalProps) {
               value={formData.truckNumber}
               onChange={handleChange}
               placeholder="e.g. MH-12-AB-1234"
-              className="w-full px-5 py-3.5 bg-slate-950/50 border border-slate-700/50 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all shadow-inner font-mono tracking-wider"
+              className="w-full px-5 py-3.5 bg-black/50 border border-white/10 rounded-2xl text-white placeholder-white/10 focus:outline-none focus:ring-2 focus:ring-[#00E5A0]/30 focus:border-[#00E5A0]/30 transition-all font-mono tracking-wider"
             />
           </div>
 
@@ -143,7 +143,7 @@ export default function AddTruckModal({ isOpen, onClose }: AddTruckModalProps) {
               value={formData.startLocation}
               onChange={handleChange}
               placeholder="Mumbai"
-              className="w-full px-5 py-3.5 bg-slate-950/50 border border-slate-700/50 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all shadow-inner"
+              className="w-full px-5 py-3.5 bg-black/50 border border-white/10 rounded-2xl text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/30 transition-all shadow-inner"
             />
           </div>
 
@@ -160,7 +160,7 @@ export default function AddTruckModal({ isOpen, onClose }: AddTruckModalProps) {
               value={formData.destination}
               onChange={handleChange}
               placeholder="Delhi"
-              className="w-full px-5 py-3.5 bg-slate-950/50 border border-slate-700/50 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all shadow-inner"
+              className="w-full px-5 py-3.5 bg-black/50 border border-white/10 rounded-2xl text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/30 transition-all shadow-inner"
             />
           </div>
 
@@ -186,7 +186,7 @@ export default function AddTruckModal({ isOpen, onClose }: AddTruckModalProps) {
               name="weight"
               value={formData.weight}
               onChange={handleChange}
-              className="w-full px-5 py-3.5 bg-slate-950/50 border border-slate-700/50 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all shadow-inner"
+              className="w-full px-5 py-3.5 bg-black/50 border border-white/10 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-amber-500/30 transition-all shadow-inner"
             />
           </div>
 
@@ -199,7 +199,7 @@ export default function AddTruckModal({ isOpen, onClose }: AddTruckModalProps) {
               name="terrainType"
               value={formData.terrainType}
               onChange={handleChange as any}
-              className="w-full px-5 py-3.5 bg-slate-950/50 border border-slate-700/50 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-rose-500/50 transition-all shadow-inner appearance-none relative cursor-pointer"
+              className="w-full px-5 py-3.5 bg-black/50 border border-white/10 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-rose-500/30 transition-all shadow-inner appearance-none relative cursor-pointer"
             >
               {TERRAIN_TYPES.map(type => (
                 <option key={type} value={type} className="bg-slate-900">{type}</option>
@@ -218,7 +218,7 @@ export default function AddTruckModal({ isOpen, onClose }: AddTruckModalProps) {
               name="scheduledTime"
               value={formData.scheduledTime}
               onChange={handleChange}
-              className="w-full px-5 py-3.5 bg-slate-950/50 border border-slate-700/50 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all shadow-inner [color-scheme:dark]"
+              className="w-full px-5 py-3.5 bg-black/50 border border-white/10 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/30 transition-all shadow-inner [color-scheme:dark]"
             />
           </div>
           

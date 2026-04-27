@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Shipment, Disruption, ActiveFilter } from '../types';
 import { RAIL_HUBS } from '../data/railHubs';
+import railwayData from '../data/india_railways.json';
 
 // Enhanced Realistic 3D Truck Icon SVG
 const truckSvg = (color: string) => `
@@ -51,32 +52,32 @@ const truckSvg = (color: string) => `
 `;
 
 // Function to create custom glowing markers (Truck or Train for Gati Shakti)
-const createCustomIcon = (status: string, delay: number = 0, rotation: number = 0, mode: string = 'Road') => {
-  const color = (status === 'Critical' || delay >= 150) ? '#ef4444' : (status === 'At Risk' || delay > 0 ? '#f59e0b' : '#10b981');
+const createCustomIcon = (status: string, delay: number = 0, rotation: number = 0, mode: string = 'Road', shipmentId: number | string = 0) => {
+  const statusColor = (status === 'Critical' || delay >= 150) ? '#ef4444' : (status === 'At Risk' || delay > 0 ? '#f59e0b' : '#00E5A0');
   
-  // Freight Train SVG - Improved for heavy industrial look
+  // Generate a unique vivid color based on shipment ID
+  const palette = [
+    '#00E5A0', '#3B82F6', '#F43F5E', '#8B5CF6', '#F59E0B', 
+    '#10B981', '#EC4899', '#06B6D4', '#F97316', '#A855F7', 
+    '#EAB308', '#22C55E', '#D946EF'
+  ];
+  const idNum = typeof shipmentId === 'number' ? shipmentId : parseInt(String(shipmentId).replace(/\D/g, '')) || 0;
+  const uniqueColor = palette[idNum % palette.length];
+  
+  // Use statusColor for the glow/status ring, but uniqueColor for the main body
   const railSvg = `
   <svg width="52" height="52" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
     <g filter="url(#shadow)">
       <!-- Locomotive -->
-      <rect x="5" y="40" width="30" height="20" rx="2" fill="#1e293b" stroke="${color}" stroke-width="2" />
-      <rect x="8" y="42" width="8" height="6" fill="#334155" /> <!-- Window -->
+      <rect x="5" y="40" width="30" height="20" rx="2" fill="#1e293b" stroke="${statusColor}" stroke-width="3" />
+      <rect x="8" y="42" width="8" height="6" fill="${uniqueColor}" /> <!-- Window Tint -->
       
-      <!-- Wagon 1 -->
-      <rect x="38" y="42" width="25" height="16" rx="1" fill="${color}" opacity="0.9" />
-      <line x1="38" y1="50" x2="63" y2="50" stroke="rgba(0,0,0,0.2)" stroke-width="1" />
+      <!-- Wagons with unique unit colors -->
+      <rect x="38" y="42" width="25" height="16" rx="1" fill="${uniqueColor}" opacity="0.95" />
+      <rect x="66" y="42" width="25" height="16" rx="1" fill="${uniqueColor}" opacity="0.95" />
       
-      <!-- Wagon 2 -->
-      <rect x="66" y="42" width="25" height="16" rx="1" fill="${color}" opacity="0.9" />
-      <line x1="66" y1="50" x2="91" y2="50" stroke="rgba(0,0,0,0.2)" stroke-width="1" />
-      
-      <!-- Wheels -->
-      <circle cx="12" cy="62" r="3" fill="#0f172a" />
-      <circle cx="28" cy="62" r="3" fill="#0f172a" />
-      <circle cx="45" cy="62" r="2.5" fill="#0f172a" />
-      <circle cx="56" cy="62" r="2.5" fill="#0f172a" />
-      <circle cx="73" cy="62" r="2.5" fill="#0f172a" />
-      <circle cx="84" cy="62" r="2.5" fill="#0f172a" />
+      <!-- Status Halo -->
+      <circle cx="50" cy="50" r="45" fill="none" stroke="${statusColor}" stroke-width="2" stroke-dasharray="4 8" opacity="0.4" />
     </g>
   </svg>`;
 
@@ -84,7 +85,10 @@ const createCustomIcon = (status: string, delay: number = 0, rotation: number = 
     className: 'custom-icon',
     html: `
       <div class="transition-all duration-300 ease-linear cursor-pointer" style="transform: rotate(${rotation}deg);">
-        ${mode === 'Rail' ? railSvg : truckSvg(color)}
+        ${mode === 'Rail' ? railSvg : truckSvg(uniqueColor)}
+        
+        <!-- Outer Status Ring -->
+        <div class="absolute inset-0 rounded-full border-2 animate-pulse" style="border-color: ${statusColor}; opacity: 0.6; box-shadow: 0 0 10px ${statusColor};"></div>
       </div>
     `,
     iconSize: [52, 52],
@@ -167,7 +171,7 @@ const TruckMarker: React.FC<TruckMarkerProps> = ({ shipment, position, rotation 
   return (
     <Marker 
       position={position}
-      icon={createCustomIcon(shipment.status, shipment.delay, rotation, shipment.transport_mode)}
+      icon={createCustomIcon(shipment.status, shipment.delay, rotation, shipment.transport_mode, shipment.id)}
       eventHandlers={{
         mouseover: (e) => e.target.openPopup(),
         mouseout: (e) => { if (!isPinned) e.target.closePopup(); },
@@ -188,32 +192,32 @@ const TruckMarker: React.FC<TruckMarkerProps> = ({ shipment, position, rotation 
           <div className="flex justify-between items-start mb-2 border-b border-slate-700 pb-1">
             <h3 className="font-bold text-white text-xs uppercase">Shipment #{shipment.truck_id || shipment.id}</h3>
             {shipment.transport_mode === 'Rail' && (
-              <span className="bg-indigo-500/20 text-indigo-400 text-[8px] px-1.5 py-0.5 rounded font-bold border border-indigo-500/30 tracking-widest">RAIL TRANSIT</span>
+              <span className="bg-[#00E5A0]/10 text-[#00E5A0] text-[8px] px-2 py-0.5 rounded font-black border border-[#00E5A0]/20 tracking-widest">RAIL TRANSIT</span>
             )}
           </div>
           
           <div className="space-y-1 text-xs">
             <div className="flex justify-between items-center text-[10px]">
               <span className="text-slate-400">Mode:</span>
-              <span className={`font-bold ${shipment.transport_mode === 'Rail' ? 'text-indigo-400' : 'text-emerald-400'}`}>
+              <span className={`font-black ${shipment.transport_mode === 'Rail' ? 'text-[#00E5A0]' : 'text-emerald-400'}`}>
                 {shipment.transport_mode === 'Rail' ? 'Gati Shakti Multimodal' : 'National Highway'}
               </span>
             </div>
 
             {/* ── RAIL: Real Train Info Panel ── */}
             {shipment.transport_mode === 'Rail' && shipment.train_number && (
-              <div className="mt-2 p-2 bg-indigo-500/10 border border-indigo-500/20 rounded-lg space-y-1.5">
-                <div className="flex items-center gap-1.5 mb-1">
+              <div className="mt-2 p-3 bg-white/[0.03] border border-white/5 rounded-2xl space-y-1.5">
+                <div className="flex items-center gap-1.5 mb-1.5">
                   <span className="text-base">🚂</span>
-                  <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-wider">Assigned Freight Train</span>
+                  <span className="text-[10px] font-black text-[#00E5A0] uppercase tracking-widest">Assigned Freight Train</span>
                 </div>
                 <div className="flex justify-between items-start">
                   <span className="text-slate-400 text-[9px]">Train No.</span>
                   <span className="font-bold text-white text-[10px]">{shipment.train_number}</span>
                 </div>
                 <div className="flex justify-between items-start gap-2">
-                  <span className="text-slate-400 text-[9px] shrink-0">Name</span>
-                  <span className="font-semibold text-indigo-200 text-[9px] text-right leading-tight">{shipment.train_name}</span>
+                  <span className="text-white/20 text-[9px] font-bold uppercase">Name</span>
+                  <span className="font-bold text-white text-[9px] text-right leading-tight">{shipment.train_name}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-slate-400 text-[9px]">Operator</span>
@@ -228,20 +232,20 @@ const TruckMarker: React.FC<TruckMarkerProps> = ({ shipment, position, rotation 
                   <span className="font-mono text-amber-400 text-[9px]">{shipment.wagon_type}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-400 text-[9px]">Avg Speed</span>
-                  <span className="text-blue-400 text-[9px] font-bold">{shipment.avg_speed_kmh} km/h</span>
+                  <span className="text-white/20 text-[9px] font-bold uppercase">Avg Speed</span>
+                  <span className="text-[#00E5A0] text-[9px] font-black">{shipment.avg_speed_kmh} km/h</span>
                 </div>
               </div>
             )}
 
-            <div className="flex justify-between items-center mt-1">
-              <span className="text-slate-400">Load:</span>
-              <span className="font-semibold text-blue-400">{shipment.weight || 15} / {shipment.maxWeight || 20} Tons</span>
+            <div className="flex justify-between items-center mt-2">
+              <span className="text-white/20 text-[10px] font-bold uppercase">Load Payload</span>
+              <span className="font-black text-[#00E5A0] text-[10px]">{shipment.weight || 15} / {shipment.maxWeight || 20} Tons</span>
             </div>
             {/* Progress Bar for Load */}
-            <div className="w-full bg-slate-700 h-1.5 rounded-full overflow-hidden">
+            <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden mt-1">
               <div 
-                className={`h-1.5 rounded-full ${((shipment.weight || 15) / (shipment.maxWeight || 20)) > 0.85 ? 'bg-red-500' : 'bg-blue-500'}`} 
+                className={`h-1.5 rounded-full ${((shipment.weight || 15) / (shipment.maxWeight || 20)) > 0.85 ? 'bg-red-500' : 'bg-[#00E5A0] shadow-[0_0_8px_rgba(0,229,160,0.5)]'}`} 
                 style={{ width: `${((shipment.weight || 15) / (shipment.maxWeight || 20)) * 100}%` }}
               ></div>
             </div>
@@ -249,9 +253,9 @@ const TruckMarker: React.FC<TruckMarkerProps> = ({ shipment, position, rotation 
             {shipment.transport_mode !== 'Rail' && (
               <>
                 <div className="flex justify-between mt-2 items-center">
-                  <span className="text-slate-400">Terrain:</span>
-                  <span className={`font-medium ${(shipment.terrain || shipment.terrain_type) === 'Mountainous' ? 'text-amber-500' : 'text-emerald-400'}`}>
-                    {shipment.terrain || shipment.terrain_type || 'Flat'}
+                  <span className="text-white/20 text-[10px] font-bold uppercase">Terrain Grade</span>
+                  <span className={`text-[10px] font-black uppercase tracking-tight ${(shipment.terrain || shipment.terrain_type) === 'Mountainous' ? 'text-amber-500' : 'text-emerald-400'}`}>
+                    {shipment.terrain || shipment.terrain_type || 'Standard'}
                   </span>
                 </div>
 
@@ -259,7 +263,7 @@ const TruckMarker: React.FC<TruckMarkerProps> = ({ shipment, position, rotation 
                 {shipment.features && (
                   <div className="flex gap-1 mt-2 flex-wrap">
                     {shipment.features.map((f: string, i: number) => (
-                      <span key={i} className="text-[9px] bg-slate-800 border border-slate-600 text-slate-300 px-1.5 py-0.5 rounded mb-1">
+                      <span key={i} className="text-[9px] bg-white/5 border border-white/10 text-white/60 px-2 py-0.5 rounded-lg font-bold uppercase tracking-tighter">
                         {f}
                       </span>
                     ))}
@@ -268,22 +272,22 @@ const TruckMarker: React.FC<TruckMarkerProps> = ({ shipment, position, rotation 
 
                 {/* Constraint Logic Visual Warning */}
                 {(shipment.terrain || shipment.terrain_type) === 'Mountainous' && ((shipment.weight || 0) / (shipment.maxWeight || 1)) > 0.8 && (
-                  <div className="mt-2 text-[10px] text-red-400 font-bold bg-red-500/10 border border-red-500/20 p-1.5 rounded">
-                    ⚠️ Warning: High Load for Steep Grade
+                  <div className="mt-3 text-[10px] text-red-400 font-black uppercase tracking-widest bg-red-500/10 border border-red-500/20 p-2 rounded-xl text-center">
+                    ⚠️ High Load Alert
                   </div>
                 )}
               </>
             )}
             
-            <div className="mt-3 pt-2 border-t border-slate-700/50 flex justify-between items-center">
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                shipment.status === 'On-Track' || shipment.status === 'On Time' ? 'text-emerald-400 bg-emerald-500/10' : 
-                shipment.status === 'At Risk' || shipment.status === 'Delayed' ? 'text-amber-400 bg-amber-500/10' : 'text-red-400 bg-red-500/10'
+            <div className="mt-4 pt-3 border-t border-white/5 flex justify-between items-center">
+              <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                (shipment.status === 'On-Track' || shipment.status === 'On Time') ? 'bg-[#00E5A0]/10 text-[#00E5A0]' : 
+                (shipment.status === 'Critical') ? 'bg-red-500/10 text-red-400' : 'bg-amber-500/10 text-amber-400'
               }`}>
                 {shipment.status}
               </span>
               {(shipment.delay || 0) > 0 && (
-                <span className="text-[11px] text-red-400 font-bold">+{shipment.delay} mins</span>
+                <span className="text-red-400 text-[10px] font-black uppercase tracking-tighter">+{shipment.delay} mins</span>
               )}
             </div>
           </div>
@@ -462,13 +466,24 @@ const Map: React.FC<MapProps> = ({ focusedLocation, isScanning, shipments, disru
 
         {/* Real-world Railway Infrastructure Overlay (OpenRailwayMap) */}
         {viewMode === 'Rail' && (
-          <TileLayer
-            className="rail-tiles"
-            attribution='Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Map style: &copy; <a href="https://www.OpenRailwayMap.org">OpenRailwayMap</a>'
-            url="https://{s}.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png"
-            zIndex={10}
-            opacity={0.8}
-          />
+          <>
+            <TileLayer
+              className="rail-tiles"
+              attribution='Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Map style: &copy; <a href="https://www.OpenRailwayMap.org">OpenRailwayMap</a>'
+              url="https://{s}.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png"
+              zIndex={10}
+              opacity={0.8}
+            />
+            {/* Vector-based High-Precision Rail Network */}
+            <GeoJSON 
+              data={railwayData as any} 
+              style={{
+                color: '#00E5A0',
+                weight: 0.8,
+                opacity: 0.2
+              }}
+            />
+          </>
         )}
         
         <MapEffect focusedLocation={focusedLocation} />
@@ -516,7 +531,7 @@ const Map: React.FC<MapProps> = ({ focusedLocation, isScanning, shipments, disru
               icon={isSelected ? railHubIconSelected : railHubIcon}
               eventHandlers={{
                 click: () => setActiveFilter(
-                  isSelected ? null : { type: 'hub', name: `Rail Hub (${coords[0].toFixed(1)},${coords[1].toFixed(1)})`, coords }
+                  isSelected ? null : { type: 'hub', label: `Rail Hub (${coords[0].toFixed(1)},${coords[1].toFixed(1)})`, coords }
                 ),
               }}
             >
@@ -562,10 +577,18 @@ const Map: React.FC<MapProps> = ({ focusedLocation, isScanning, shipments, disru
                 const pastRoute   = shipment.route.slice(0, splitIndex + 1);
                 const futureRoute = shipment.route.slice(splitIndex);
 
+                const palette = [
+                  '#00E5A0', '#3B82F6', '#F43F5E', '#8B5CF6', '#F59E0B', 
+                  '#10B981', '#EC4899', '#06B6D4', '#F97316', '#A855F7', 
+                  '#EAB308', '#22C55E', '#D946EF'
+                ];
+                const idNum = typeof shipment.id === 'number' ? shipment.id : parseInt(String(shipment.id).replace(/\D/g, '')) || 0;
+                const uniqueColor = palette[idNum % palette.length];
+
                 const futureColor =
                   (shipment.status === 'Critical' || (shipment.delay || 0) >= 150) ? '#ef4444' :
                   (shipment.status === 'At Risk' || shipment.status === 'Delayed' || (shipment.delay || 0) > 0) ? '#f59e0b' :
-                  '#10b981'; // Vibrant Emerald Green for On-Track
+                  uniqueColor; // Each track now has its own vibrant color
 
                 return (
                   <React.Fragment key={`routes-${shipment.id}`}>
@@ -672,19 +695,19 @@ const Map: React.FC<MapProps> = ({ focusedLocation, isScanning, shipments, disru
 
       {/* Active Filter Banner — Reset View */}
       {activeFilter && (
-        <div className="mb-2 flex items-center gap-2 bg-indigo-900/90 backdrop-blur-md border border-indigo-500/40 rounded-xl px-3 py-2 shadow-xl pointer-events-auto">
-          <span className="text-indigo-300 text-[10px] font-bold uppercase tracking-wider">
+        <div className="mb-2 flex items-center gap-2 bg-black/90 backdrop-blur-md border border-[#00E5A0]/40 rounded-xl px-3 py-2 shadow-xl pointer-events-auto">
+          <span className="text-[#00E5A0] text-[10px] font-bold uppercase tracking-wider">
             {activeFilter.type === 'shipment' ? `📦 ${activeFilter.label}` : `🚉 Rail Hub`}
           </span>
           <button
             onClick={() => setActiveFilter(null)}
-            className="ml-2 text-[10px] bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-2 py-0.5 rounded-lg transition-colors"
+            className="ml-2 text-[10px] bg-[#00E5A0] hover:bg-[#00E5A0]/80 text-black font-bold px-2 py-0.5 rounded-lg transition-colors"
           >
             ✕ Reset View
           </button>
         </div>
       )}
-        <div className="bg-slate-900/90 backdrop-blur-md border border-slate-700/60 rounded-xl px-4 py-2.5 flex items-center gap-4 shadow-2xl">
+        <div className="hidden sm:flex bg-black/90 backdrop-blur-md border border-white/10 rounded-[20px] px-5 py-3 flex items-center gap-5 shadow-2xl">
           <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mr-1">Legend</span>
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></div>
@@ -710,17 +733,22 @@ const Map: React.FC<MapProps> = ({ focusedLocation, isScanning, shipments, disru
 
       {/* Scanning Overlay */}
       {isScanning && (
-        <div className="absolute inset-0 z-[2000] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center pointer-events-none transition-all duration-300">
-          <div className="bg-slate-900 border border-indigo-500/30 p-6 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm w-full mx-4 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-indigo-500/10 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]" />
-            <div className="w-12 h-12 rounded-full border-4 border-slate-700 border-t-indigo-500 animate-spin mb-4"></div>
-            <h3 className="text-white font-bold text-lg mb-1">AI Calculation in Progress</h3>
-            <p className="text-slate-400 text-sm text-center mb-4">Analyzing traffic logic, payload constraints, and weather patterns...</p>
+        <div className="absolute inset-0 z-[2000] bg-black/80 backdrop-blur-md flex items-center justify-center pointer-events-none transition-all duration-500">
+          <div className="bg-[#050505] border border-[#00E5A0]/30 p-8 rounded-[40px] shadow-[0_0_100px_rgba(0,0,0,1)] flex flex-col items-center max-w-sm w-full mx-4 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#00E5A0]/10 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]" />
             
-            <div className="w-full bg-slate-800 rounded-full h-1.5 mb-1 overflow-hidden">
-              <div className="bg-indigo-500 h-1.5 rounded-full animate-[progress_2s_ease-in-out_forwards]"></div>
+            <div className="relative mb-6">
+              <div className="w-16 h-16 rounded-full border-4 border-white/5 border-t-[#00E5A0] animate-spin"></div>
+              <div className="absolute inset-0 rounded-full bg-[#00E5A0]/20 blur-xl animate-pulse" />
             </div>
-            <div className="w-full flex justify-between text-[10px] text-slate-500 font-mono">
+
+            <h3 className="text-white font-black text-xl mb-2 uppercase tracking-tight">AI Calculation</h3>
+            <p className="text-white/40 text-xs text-center mb-8 font-bold uppercase tracking-widest leading-relaxed">Analyzing traffic logic, payload constraints, and weather patterns...</p>
+            
+            <div className="w-full bg-white/5 rounded-full h-1.5 mb-2 overflow-hidden">
+              <div className="bg-[#00E5A0] h-1.5 rounded-full animate-[progress_2s_ease-in-out_forwards] shadow-[0_0_10px_#00E5A0]"></div>
+            </div>
+            <div className="w-full flex justify-between text-[9px] text-white/20 font-black uppercase tracking-widest">
               <span>0%</span>
               <span>100%</span>
             </div>

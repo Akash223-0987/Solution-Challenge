@@ -7,8 +7,10 @@
 
 /* Prevent white flash before Tailwind paints */
 body {
-  background: #020617; /* slate-950 */
+  background: #000000;
   margin: 0;
+  color: #fff;
+  font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
 #root {
@@ -16,51 +18,46 @@ body {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  background: #000;
 }
 
-
-/* Custom Marker Styles */
-@keyframes pulse {
-  0% { transform: scale(0.95); opacity: 0.7; }
-  50% { transform: scale(1.2); opacity: 1; }
-  100% { transform: scale(0.95); opacity: 0.7; }
+/* Custom Scrollbar for the Logistics OS feel */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-.marker-pulse {
-  animation: pulse 2s infinite ease-in-out;
+::-webkit-scrollbar-track {
+  background: #000;
 }
 
-.custom-marker {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
 }
 
-.marker-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 2px solid white;
-  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 229, 160, 0.3);
 }
 
-/* Leaflet Popup Styling */
+/* Leaflet Popup Styling - Cinematic Glassmorphism */
 .leaflet-popup-content-wrapper {
-  background: rgba(15, 23, 42, 0.9) !important;
-  backdrop-filter: blur(8px);
+  background: rgba(10, 15, 20, 0.85) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
   color: white !important;
-  border-radius: 12px !important;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5) !important;
+  padding: 4px !important;
 }
 
 .leaflet-popup-tip {
-  background: rgba(15, 23, 42, 0.9) !important;
+  background: rgba(10, 15, 20, 0.85) !important;
 }
 
 .leaflet-popup-close-button {
-  color: white !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+  padding: 8px !important;
 }
 
 @keyframes shimmer {
@@ -111,6 +108,6 @@ body {
 }
 
 .prose-ai strong {
-  color: #60a5fa; /* blue-400 */
+  color: #00E5A0; /* Neon Green */
   font-weight: 700;
 }

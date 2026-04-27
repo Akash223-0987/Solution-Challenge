@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import {
   Train, Truck, AlertTriangle, Zap, Leaf, Clock,
-  Star, X, CheckCircle, MapPin, ArrowRight, IndianRupee,
-  Shield,
+  Star, X, CheckCircle, MapPin, IndianRupee,
+  Shield, ChevronRight, Activity
 } from 'lucide-react';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -60,9 +60,9 @@ interface GatiShaktiModalProps {
 
 const fmt = (n: number) => n.toLocaleString('en-IN');
 const severityColor = (s: string | null) =>
-  s === 'Critical' ? 'text-red-400 bg-red-500/10 border-red-500/30' :
-  s === 'High'     ? 'text-amber-400 bg-amber-500/10 border-amber-500/30' :
-                     'text-blue-400 bg-blue-500/10 border-blue-500/30';
+  s === 'Critical' ? 'text-red-400 border-red-500/30 bg-red-500/10' :
+  s === 'High'     ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' :
+                     'text-[#00E5A0] border-[#00E5A0]/30 bg-[#00E5A0]/10';
 
 // ── Sub-component: Hub Option Card ───────────────────────────────────────────
 
@@ -76,91 +76,103 @@ const HubCard: React.FC<{
   return (
     <button
       onClick={onSelect}
-      className={`w-full text-left rounded-xl border p-3 transition-all duration-200 relative group ${
+      className={`w-full text-left rounded-2xl border transition-all duration-300 relative overflow-hidden group ${
         isSelected
-          ? 'border-indigo-500 bg-indigo-500/10 shadow-[0_0_20px_rgba(99,102,241,0.15)]'
-          : 'border-slate-700 bg-slate-800/60 hover:border-slate-600 hover:bg-slate-800'
+          ? 'border-[#00E5A0] bg-[#00E5A0]/10 shadow-[0_0_30px_rgba(0,229,160,0.1)]'
+          : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]'
       }`}
     >
-      {/* Top row */}
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center gap-2">
-          {option.isRecommended && (
-            <span className="flex items-center gap-1 text-[9px] bg-amber-500/15 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
-              <Star className="w-2.5 h-2.5" /> AI Pick
-            </span>
-          )}
-          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${
-            isSelected ? 'text-indigo-300 bg-indigo-500/20 border-indigo-500/30' : 'text-slate-400 bg-slate-700/50 border-slate-600'
-          }`}>
-            OPT {option.rank}
-          </span>
-        </div>
-        {isSelected && (
-          <CheckCircle className="w-4 h-4 text-indigo-400 shrink-0" />
-        )}
-      </div>
+      {/* Selection Glow */}
+      {isSelected && (
+        <div className="absolute top-0 right-0 w-24 h-24 bg-[#00E5A0]/20 blur-3xl rounded-full -mr-12 -mt-12 animate-pulse" />
+      )}
 
-      {/* Route */}
-      <div className="flex items-center gap-1.5 mb-2.5">
-        <Truck className="w-3 h-3 text-slate-400 shrink-0" />
-        <span className="text-[10px] text-slate-300 font-medium truncate">{option.originHub}</span>
-        <ArrowRight className="w-2.5 h-2.5 text-indigo-400 shrink-0" />
-        <Train className="w-3 h-3 text-indigo-400 shrink-0" />
-        <span className="text-[10px] text-slate-300 font-medium truncate">{option.destHub}</span>
-      </div>
+      <div className="p-4 relative z-10">
+        {/* Top Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${
+              isSelected ? 'bg-[#00E5A0] text-black border-[#00E5A0]' : 'bg-white/5 text-white/40 border-white/10'
+            }`}>
+              Option {option.rank}
+            </div>
+            {option.isRecommended && (
+              <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-amber-400">
+                <Star className="w-3 h-3 fill-amber-400" />
+                AI Pick
+              </div>
+            )}
+          </div>
+          {isSelected && <CheckCircle className="w-5 h-5 text-[#00E5A0]" />}
+        </div>
 
-      {/* Train info */}
-      <div className="bg-slate-900/60 rounded-lg p-2 mb-2.5 border border-slate-700/50">
-        <div className="flex items-center gap-1.5 mb-1">
-          <span className="text-sm">🚂</span>
-          <span className="text-[9px] font-bold text-indigo-300 uppercase tracking-wider">
-            [{option.train.train_number}]
-          </span>
+        {/* Train Identifier */}
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="p-1.5 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+              <Train className="w-3.5 h-3.5 text-blue-400" />
+            </div>
+            <span className="text-[10px] font-black text-white uppercase tracking-widest">{option.train.train_number}</span>
+          </div>
+          <p className="text-xs font-bold text-white leading-tight truncate">{option.train.train_name}</p>
+          <div className="text-[10px] text-white/30 mt-1 flex gap-2 font-medium">
+            <span>{option.train.avg_speed_kmh} km/h</span>
+            <span className="text-white/10">•</span>
+            <span>{option.train.wagon_type}</span>
+          </div>
         </div>
-        <p className="text-[10px] text-slate-200 font-semibold leading-tight mb-1">
-          {option.train.train_name}
-        </p>
-        <div className="flex gap-3 text-[9px] text-slate-400">
-          <span>{option.train.train_operator}</span>
-          <span className="font-mono text-amber-400">{option.train.wagon_type}</span>
-          <span className="text-blue-400 font-bold">{option.train.avg_speed_kmh} km/h</span>
-        </div>
-      </div>
 
-      {/* Metrics grid */}
-      <div className="grid grid-cols-3 gap-1.5">
-        {/* Time */}
-        <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-1.5 text-center">
-          <Clock className="w-3 h-3 text-blue-400 mx-auto mb-0.5" />
-          <p className="text-[10px] font-bold text-blue-400">{option.timeSavedHours}h</p>
-          <p className="text-[8px] text-slate-500">saved</p>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-3 gap-2 py-3 border-t border-white/5">
+          <div className="space-y-1">
+            <div className="flex items-center gap-1 text-[9px] font-bold text-white/30 uppercase tracking-tighter">
+              <Clock className="w-2.5 h-2.5" />
+              Time
+            </div>
+            <p className="text-sm font-black text-blue-400">-{option.timeSavedHours}h</p>
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-1 text-[9px] font-bold text-white/30 uppercase tracking-tighter">
+              <IndianRupee className="w-2.5 h-2.5" />
+              Saving
+            </div>
+            <p className={`text-sm font-black ${savingsPositive ? 'text-[#00E5A0]' : 'text-white/60'}`}>
+              {savingsPositive ? `₹${fmt(Math.round(option.costSavingINR))}` : '0'}
+            </p>
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-1 text-[9px] font-bold text-white/30 uppercase tracking-tighter">
+              <Leaf className="w-2.5 h-2.5" />
+              Carbon
+            </div>
+            <p className="text-sm font-black text-green-400">-{option.co2SavingKg}kg</p>
+          </div>
         </div>
-        {/* Cost */}
-        <div className={`border rounded-lg p-1.5 text-center ${
-          savingsPositive ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-slate-700/30 border-slate-600/30'
-        }`}>
-          <IndianRupee className={`w-3 h-3 mx-auto mb-0.5 ${savingsPositive ? 'text-emerald-400' : 'text-slate-400'}`} />
-          <p className={`text-[10px] font-bold ${savingsPositive ? 'text-emerald-400' : 'text-slate-400'}`}>
-            {savingsPositive ? `₹${fmt(option.costSavingINR)}` : `+₹${fmt(Math.abs(option.costSavingINR))}`}
-          </p>
-          <p className="text-[8px] text-slate-500">{savingsPositive ? 'saved' : 'extra'}</p>
-        </div>
-        {/* CO₂ */}
-        <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-1.5 text-center">
-          <Leaf className="w-3 h-3 text-green-400 mx-auto mb-0.5" />
-          <p className="text-[10px] font-bold text-green-400">{option.co2SavingKg} kg</p>
-          <p className="text-[8px] text-slate-500">CO₂ less</p>
-        </div>
-      </div>
 
-      {/* Distance breakdown */}
-      <div className="mt-2 flex items-center justify-center gap-1.5 text-[9px] text-slate-500">
-        <span>🚛 {option.distToHubKm} km</span>
-        <span className="text-slate-700">→</span>
-        <span>🚂 {option.distRailLegKm} km rail</span>
-        <span className="text-slate-700">→</span>
-        <span>🚛 {option.distLastMileKm} km</span>
+        {/* Visual Route */}
+        <div className="mt-3 pt-3 border-t border-white/5">
+          <div className="flex items-center justify-between px-1">
+             <div className="flex flex-col items-center">
+                <Truck className="w-3 h-3 text-white/20 mb-1" />
+                <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
+             </div>
+             <div className="flex-1 h-px bg-gradient-to-r from-white/10 via-blue-500/40 to-white/10 mx-2" />
+             <div className="flex flex-col items-center">
+                <Train className="w-3 h-3 text-blue-400 mb-1" />
+                <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+             </div>
+             <div className="flex-1 h-px bg-gradient-to-r from-white/10 via-white/10 to-white/10 mx-2" />
+             <div className="flex flex-col items-center">
+                <Truck className="w-3 h-3 text-white/20 mb-1" />
+                <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
+             </div>
+          </div>
+          <div className="flex justify-between text-[8px] font-bold text-white/20 uppercase tracking-widest mt-2">
+            <span>{option.distToHubKm}km</span>
+            <span className="text-blue-400/60">{option.distRailLegKm}km rail</span>
+            <span>{option.distLastMileKm}km</span>
+          </div>
+        </div>
       </div>
     </button>
   );
@@ -170,90 +182,67 @@ const HubCard: React.FC<{
 
 const SuggestionRow: React.FC<{
   suggestion: Suggestion;
-  selectedHub: number; // index into hubOptions
+  selectedHub: number;
   onSelectHub: (idx: number) => void;
 }> = ({ suggestion, selectedHub, onSelectHub }) => {
-  const [expanded, setExpanded] = useState(true);
-  const chosen = suggestion.hubOptions[selectedHub];
 
   return (
-    <div className="border border-slate-700/60 rounded-2xl overflow-hidden bg-slate-800/40">
-      {/* Header */}
-      <button
-        onClick={() => setExpanded(e => !e)}
-        className="w-full p-4 flex items-start gap-3 hover:bg-slate-700/20 transition-colors"
-      >
-        {/* Truck icon + status pulse */}
-        <div className="relative shrink-0 mt-0.5">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-            suggestion.currentStatus === 'Critical' ? 'bg-red-500/20' : 'bg-amber-500/20'
-          }`}>
-            <Truck className={`w-4 h-4 ${
-              suggestion.currentStatus === 'Critical' ? 'text-red-400' : 'text-amber-400'
+    <div className="bg-white/[0.02] border border-white/5 rounded-3xl overflow-hidden mb-6 backdrop-blur-xl">
+      {/* Top Banner (Status) */}
+      <div className="px-6 py-4 flex items-center justify-between border-b border-white/5 bg-white/[0.01]">
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
+              suggestion.currentStatus === 'Critical' ? 'bg-red-500/10 border border-red-500/20' : 'bg-amber-500/10 border border-amber-500/20'
+            }`}>
+              <Truck className={`w-5 h-5 ${suggestion.currentStatus === 'Critical' ? 'text-red-400' : 'text-amber-400'}`} />
+            </div>
+            <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-black ${
+              suggestion.currentStatus === 'Critical' ? 'bg-red-500 animate-pulse' : 'bg-amber-500'
             }`} />
           </div>
-          <div className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full animate-ping ${
-            suggestion.currentStatus === 'Critical' ? 'bg-red-500' : 'bg-amber-500'
-          }`} />
-          <div className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ${
-            suggestion.currentStatus === 'Critical' ? 'bg-red-500' : 'bg-amber-500'
-          }`} />
-        </div>
-
-        <div className="flex-1 min-w-0 text-left">
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className="font-bold text-white text-sm">{suggestion.truckId}</span>
-            <span className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase ${severityColor(suggestion.currentStatus)}`}>
-              {suggestion.currentStatus}
-            </span>
-            {suggestion.currentDelay > 0 && (
-              <span className="text-[9px] text-red-400 font-bold">+{suggestion.currentDelay} min delay</span>
-            )}
-          </div>
-          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mb-1">
-            <MapPin className="w-3 h-3 shrink-0" />
-            <span className="truncate">{suggestion.origin}</span>
-            <ArrowRight className="w-2.5 h-2.5 shrink-0" />
-            <span className="truncate">{suggestion.destination}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0" />
-            <span className="text-[10px] text-amber-300">{suggestion.riskReason}</span>
+          <div>
+            <div className="flex items-center gap-3">
+              <h3 className="text-base font-black text-white">{suggestion.truckId}</h3>
+              <div className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border ${severityColor(suggestion.currentStatus)}`}>
+                {suggestion.currentStatus}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-[10px] text-white/30 font-bold uppercase tracking-wider mt-0.5">
+              <MapPin className="w-3 h-3" />
+              {suggestion.origin} <ChevronRight className="w-2.5 h-2.5" /> {suggestion.destination}
+            </div>
           </div>
         </div>
-
-        {/* Selected summary (collapsed view) */}
-        {!expanded && chosen && (
-          <div className="shrink-0 text-right">
-            <p className="text-[9px] text-indigo-400 font-bold">{chosen.originHub}</p>
-            <p className="text-[9px] text-slate-500">{chosen.train.train_number}</p>
+        
+        <div className="text-right">
+          <div className="flex items-center gap-2 text-amber-400 mb-0.5">
+            <AlertTriangle className="w-3.5 h-3.5" />
+            <span className="text-xs font-black uppercase tracking-tighter">{suggestion.riskReason}</span>
           </div>
-        )}
-        <span className="text-slate-600 text-xs ml-1">{expanded ? '▲' : '▼'}</span>
-      </button>
-
-      {/* Expanded Hub Options */}
-      {expanded && (
-        <div className="px-4 pb-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="h-px flex-1 bg-slate-700/60" />
-            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-              Select Nearest Rail Hub
-            </span>
-            <div className="h-px flex-1 bg-slate-700/60" />
-          </div>
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-            {suggestion.hubOptions.map((opt, idx) => (
-              <HubCard
-                key={opt.originHub}
-                option={opt}
-                isSelected={selectedHub === idx}
-                onSelect={() => onSelectHub(idx)}
-              />
-            ))}
-          </div>
+          <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest leading-none">
+            Delayed by {suggestion.currentDelay} min
+          </p>
         </div>
-      )}
+      </div>
+
+      {/* Grid of Options */}
+      <div className="p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <Activity className="w-4 h-4 text-[#00E5A0]" />
+          <span className="text-[10px] font-black text-[#00E5A0] uppercase tracking-[0.2em]">Intermodal Route Options</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {suggestion.hubOptions.map((opt, idx) => (
+            <HubCard
+              key={opt.originHub}
+              option={opt}
+              isSelected={selectedHub === idx}
+              onSelect={() => onSelectHub(idx)}
+            />
+          ))}
+        </div>
+      </div>
     </div>
   );
 };
@@ -263,7 +252,6 @@ const SuggestionRow: React.FC<{
 const GatiShaktiModal: React.FC<GatiShaktiModalProps> = ({
   isOpen, suggestions, onConfirm, onClose, isApplying
 }) => {
-  // Default: select the recommended (index 0) option per suggestion
   const [selections, setSelections] = useState<Record<number, number>>({});
 
   const getSelection = (idx: number) => selections[idx] ?? 0;
@@ -272,7 +260,6 @@ const GatiShaktiModal: React.FC<GatiShaktiModalProps> = ({
     setSelections(prev => ({ ...prev, [suggIdx]: hubIdx }));
   };
 
-  // Aggregate savings across all selected options
   const totalTimeSaved = suggestions.reduce((sum, s, idx) => {
     const opt = s.hubOptions[getSelection(idx)];
     return sum + (opt?.timeSavedHours || 0);
@@ -289,79 +276,80 @@ const GatiShaktiModal: React.FC<GatiShaktiModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
-      {/* Backdrop */}
+    <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 md:p-8">
+      {/* Cinematic Backdrop */}
       <div
-        className="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
+        className="absolute inset-0 bg-black/90 backdrop-blur-2xl"
         onClick={onClose}
       />
 
-      {/* Modal */}
-      <div className="relative w-full max-w-4xl max-h-[90vh] flex flex-col bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl shadow-black/60 overflow-hidden animate-modal-fade-in">
-
-        {/* ── Header ── */}
-        <div className="shrink-0 bg-gradient-to-r from-indigo-950 via-slate-900 to-slate-900 border-b border-slate-700/60 p-5">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center">
-                <Train className="w-5 h-5 text-indigo-400" />
+      {/* Modal Container */}
+      <div className="relative w-full max-w-5xl h-full max-h-[850px] flex flex-col bg-[#050505] border border-white/10 rounded-[40px] shadow-[0_0_100px_rgba(0,0,0,1)] overflow-hidden animate-modal-fade-in">
+        
+        {/* Header Section */}
+        <div className="p-8 border-b border-white/5 relative shrink-0">
+          <div className="flex items-start justify-between relative z-10">
+            <div className="flex items-center gap-5">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#00E5A0] to-blue-600 p-[1px] shadow-[0_0_30px_rgba(0,229,160,0.2)]">
+                <div className="w-full h-full bg-black rounded-2xl flex items-center justify-center">
+                  <Train className="w-7 h-7 text-white" />
+                </div>
               </div>
               <div>
-                <h2 className="text-white font-bold text-lg tracking-tight">
-                  Gati Shakti Multimodal Intelligence
+                <h2 className="text-3xl font-black text-white tracking-tight leading-none mb-2 uppercase">
+                  Gati Shakti <span className="text-[#00E5A0]">Intelligence</span>
                 </h2>
-                <p className="text-slate-400 text-xs">
-                  {suggestions.length} shipment{suggestions.length !== 1 ? 's' : ''} flagged — AI recommends rail transshipment
-                </p>
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] text-white/30 font-bold uppercase tracking-[0.3em]">Operational Directive</span>
+                  <div className="w-1 h-1 rounded-full bg-white/20" />
+                  <span className="text-[10px] text-[#00E5A0] font-black uppercase tracking-[0.2em] animate-pulse">AI Optimization Ready</span>
+                </div>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-slate-700 transition-colors text-slate-400 hover:text-white"
+              className="p-3 rounded-full hover:bg-white/5 transition-colors text-white/20 hover:text-white"
             >
-              <X className="w-4 h-4" />
+              <X className="w-6 h-6" />
             </button>
           </div>
 
-          {/* Risk alert bar */}
-          <div className="mt-4 flex items-center gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/25 rounded-xl">
-            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 animate-pulse" />
-            <p className="text-xs text-amber-300">
-              <span className="font-bold">Delay / disruption detected</span> — Select a rail hub per shipment below,
-              then click <span className="font-bold text-white">Apply Gati Shakti Routes</span>.
-            </p>
-          </div>
-        </div>
-
-        {/* ── Aggregate Savings Bar ── */}
-        <div className="shrink-0 grid grid-cols-3 divide-x divide-slate-700/60 bg-slate-800/40 border-b border-slate-700/60">
-          <div className="flex items-center gap-2.5 px-5 py-3">
-            <Clock className="w-4 h-4 text-blue-400 shrink-0" />
-            <div>
-              <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Time Saved</p>
-              <p className="text-base font-bold text-blue-400">{Math.round(totalTimeSaved * 10) / 10} hrs</p>
+          {/* Intelligence Briefing Bar */}
+          <div className="mt-8 grid grid-cols-3 gap-6">
+            <div className="bg-blue-500/5 border border-blue-500/10 rounded-2xl p-4 flex items-center gap-4 group hover:border-blue-500/30 transition-all">
+               <div className="p-3 bg-blue-500/10 rounded-xl">
+                 <Clock className="w-5 h-5 text-blue-400" />
+               </div>
+               <div>
+                  <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">Time Recovery</p>
+                  <p className="text-xl font-black text-blue-400">{Math.round(totalTimeSaved * 10) / 10} <span className="text-xs font-bold text-blue-400/40">HRS</span></p>
+               </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2.5 px-5 py-3">
-            <IndianRupee className="w-4 h-4 text-emerald-400 shrink-0" />
-            <div>
-              <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Cost Saving</p>
-              <p className={`text-base font-bold ${totalCostSaved >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {totalCostSaved >= 0 ? '+' : ''}₹{fmt(Math.abs(Math.round(totalCostSaved)))}
-              </p>
+            <div className="bg-[#00E5A0]/5 border border-[#00E5A0]/10 rounded-2xl p-4 flex items-center gap-4 group hover:border-[#00E5A0]/30 transition-all">
+               <div className="p-3 bg-[#00E5A0]/10 rounded-xl">
+                 <IndianRupee className="w-5 h-5 text-[#00E5A0]" />
+               </div>
+               <div>
+                  <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">Cost Savings</p>
+                  <p className={`text-xl font-black ${totalCostSaved >= 0 ? 'text-[#00E5A0]' : 'text-red-400'}`}>
+                    {totalCostSaved >= 0 ? '+' : ''}₹{fmt(Math.abs(Math.round(totalCostSaved)))}
+                  </p>
+               </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2.5 px-5 py-3">
-            <Leaf className="w-4 h-4 text-green-400 shrink-0" />
-            <div>
-              <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">CO₂ Reduced</p>
-              <p className="text-base font-bold text-green-400">{Math.round(totalCO2Saved)} kg</p>
+            <div className="bg-green-500/5 border border-green-500/10 rounded-2xl p-4 flex items-center gap-4 group hover:border-green-500/30 transition-all">
+               <div className="p-3 bg-green-500/10 rounded-xl">
+                 <Leaf className="w-5 h-5 text-green-400" />
+               </div>
+               <div>
+                  <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">Carbon Credit</p>
+                  <p className="text-xl font-black text-green-400">{Math.round(totalCO2Saved)} <span className="text-xs font-bold text-green-400/40">KG</span></p>
+               </div>
             </div>
           </div>
         </div>
 
-        {/* ── Suggestion Cards ── */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar bg-[radial-gradient(circle_at_top_right,rgba(0,229,160,0.02),transparent)]">
           {suggestions.map((sug, idx) => (
             <SuggestionRow
               key={sug.shipmentId}
@@ -372,36 +360,39 @@ const GatiShaktiModal: React.FC<GatiShaktiModalProps> = ({
           ))}
         </div>
 
-        {/* ── Footer ── */}
-        <div className="shrink-0 border-t border-slate-700/60 bg-slate-900/80 px-5 py-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-[11px] text-slate-500">
-            <Shield className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Powered by <span className="text-indigo-400 font-semibold">PM Gati Shakti Master Plan</span> · DFCC Logistics Grid</span>
-          </div>
+        {/* Action Footer */}
+        <div className="p-8 border-t border-white/5 bg-black/50 backdrop-blur-xl flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
+             <Shield className="w-5 h-5 text-[#00E5A0]" />
+             <div>
+                <p className="text-[10px] font-black text-white uppercase tracking-widest leading-none mb-1">Secure Protocol</p>
+                <p className="text-[9px] text-white/20 font-bold uppercase tracking-wider">PM Gati Shakti Master Plan Integration</p>
+             </div>
+          </div>
+          
+          <div className="flex items-center gap-4">
             <button
               onClick={onClose}
               disabled={isApplying}
-              className="px-4 py-2 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-700 transition-colors disabled:opacity-50"
+              className="px-8 py-4 rounded-2xl text-xs font-black text-white/40 uppercase tracking-widest hover:text-white transition-all disabled:opacity-30"
             >
-              Keep Road Routes
+              Maintain Road Ops
             </button>
             <button
               onClick={onConfirm}
               disabled={isApplying}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-bold transition-all duration-200 shadow-lg shadow-indigo-900/50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group relative px-10 py-4 rounded-2xl bg-[#00E5A0] text-black text-xs font-black uppercase tracking-[0.2em] transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_20px_50px_rgba(0,229,160,0.3)]"
             >
               {isApplying ? (
-                <>
-                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Applying Routes…
-                </>
+                <div className="flex items-center gap-3">
+                   <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                   Executing...
+                </div>
               ) : (
-                <>
-                  <Train className="w-4 h-4" />
-                  Apply Gati Shakti Routes
-                  <Zap className="w-3.5 h-3.5 text-yellow-300" />
-                </>
+                <div className="flex items-center gap-2">
+                   Apply Multimodal Shift
+                   <Zap className="w-4 h-4" />
+                </div>
               )}
             </button>
           </div>

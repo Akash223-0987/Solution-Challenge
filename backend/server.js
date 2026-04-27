@@ -64,70 +64,7 @@ function getOsrmUrl(coordsArray, originName, destName) {
 // ─────────────────────────────────────────────────────────────────────────────
 function findRailPath(startHub, endHub) {
     if (!RAIL_HUBS[startHub] || !RAIL_HUBS[endHub]) return [];
-    if (startHub === endHub) return [RAIL_HUBS[startHub]];
-
-    const hubNames = Object.keys(RAIL_HUBS);
-    const destCoords = RAIL_HUBS[endHub];
-    
-    // 1. Build Adjacency List with Speed Weighting
-    const adj = {};
-    hubNames.forEach(h => adj[h] = []);
-    
-    // Add Manual Backbone (Very Low Weight = High Priority)
-    RAIL_CONNECTIONS.forEach(([h1, h2]) => {
-      if (RAIL_HUBS[h1] && RAIL_HUBS[h2]) {
-        const d = Math.sqrt(Math.pow(RAIL_HUBS[h1][0]-RAIL_HUBS[h2][0], 2) + Math.pow(RAIL_HUBS[h1][1]-RAIL_HUBS[h2][1], 2));
-        adj[h1].push({ name: h2, dist: d * 0.1 }); // Backbone is 10x 'faster'
-        adj[h2].push({ name: h1, dist: d * 0.1 });
-      }
-    });
-
-    // Add Local Connectors (Standard Weight)
-    hubNames.forEach(h => {
-        const h1 = RAIL_HUBS[h];
-        const local = hubNames
-            .filter(h2 => h2 !== h)
-            .map(h2 => ({ name: h2, dist: Math.sqrt(Math.pow(h1[0]-RAIL_HUBS[h2][0], 2) + Math.pow(h1[1]-RAIL_HUBS[h2][1], 2)) }))
-            .sort((a, b) => a.dist - b.dist)
-            .slice(0, 3);
-        
-        local.forEach(n => {
-          if (!adj[h].some(e => e.name === n.name)) {
-             adj[h].push(n);
-             if (adj[n.name]) adj[n.name].push({ name: h, dist: n.dist });
-          }
-        });
-    });
-
-    // 2. A* Algorithm
-    const gScore = {};
-    const fScore = {};
-    const previous = {};
-    const openSet = [startHub];
-
-    hubNames.forEach(h => { gScore[h] = Infinity; fScore[h] = Infinity; });
-    gScore[startHub] = 0;
-    fScore[startHub] = Math.sqrt(Math.pow(RAIL_HUBS[startHub][0]-destCoords[0], 2) + Math.pow(RAIL_HUBS[startHub][1]-destCoords[1], 2));
-
-    while (openSet.length > 0) {
-        openSet.sort((a, b) => fScore[a] - fScore[b]);
-        const current = openSet.shift();
-        if (current === endHub) {
-            const path = [];
-            let temp = current;
-            while (temp) { path.push(RAIL_HUBS[temp]); temp = previous[temp]; }
-            return path.reverse();
-        }
-        for (const neighbor of adj[current]) {
-            const tentativeGScore = gScore[current] + neighbor.dist;
-            if (tentativeGScore < gScore[neighbor.name]) {
-                previous[neighbor.name] = current;
-                gScore[neighbor.name] = tentativeGScore;
-                fScore[neighbor.name] = gScore[neighbor.name] + Math.sqrt(Math.pow(RAIL_HUBS[neighbor.name][0]-destCoords[0], 2) + Math.pow(RAIL_HUBS[neighbor.name][1]-destCoords[1], 2));
-                if (!openSet.includes(neighbor.name)) openSet.push(neighbor.name);
-            }
-        }
-    }
+    // Shortest distance: Just go from origin hub to destination hub directly
     return [RAIL_HUBS[startHub], RAIL_HUBS[endHub]];
 }
 
@@ -137,7 +74,7 @@ const openrouter = new OpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY
 });
 
-const AI_MODEL = "meta-llama/llama-3-8b-instruct:free";
+const AI_MODEL = "google/gemma-4-31b-it:free";
 
 // 1. Fetch Shipments
 app.get('/api/shipments', async (req, res) => {
@@ -161,25 +98,21 @@ app.post('/api/shipments', async (req, res) => {
 
   // Input validation
   if (!truck_id || !origin || !destination || isNaN(weight) || weight <= 0) {
-    return res.status(400).json({ error: 'Invalid input: truck_id, origin, destination, and a positive weight are required.' });
-  }
-  if (!CITY_COORDS[origin]) {
-    console.warn(`❌ Unknown origin: "${origin}"`);
-    return res.status(400).json({ error: `Unknown origin city: "${origin}". Please use a supported Indian city.` });
-  }
-  if (!CITY_COORDS[destination]) {
-    console.warn(`❌ Unknown destination: "${destination}"`);
-    return res.status(400).json({ error: `Unknown destination city: "${destination}". Please use a supported Indian city.` });
+    return res.status(400).json({ error: "Invalid truck data. Please provide ID, origin, destination, and valid weight." });
   }
 
   const startCoords = CITY_COORDS[origin];
-  const endCoords = CITY_COORDS[destination];
+  const destCoords = CITY_COORDS[destination];
 
-  // Fetch initial real road route from OSRM
-  let route = [startCoords, endCoords]; 
+  if (!startCoords || !destCoords) {
+    return res.status(400).json({ error: `Could not geocode cities. Available: ${Object.keys(CITY_COORDS).slice(0, 5).join(', ')}...` });
+  }
+
+  // Initial OSRM Route Fetch
+  let route = [startCoords, destCoords];
   try {
-    const osrmUrl = getOsrmUrl([startCoords, endCoords], origin, destination);
-    const osrmRes = await fetch(osrmUrl);
+    const url = getOsrmUrl([startCoords, destCoords], origin, destination);
+    const osrmRes = await fetch(url);
     const osrmData = await osrmRes.json();
     if (osrmData.routes && osrmData.routes[0]) {
       route = osrmData.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
@@ -188,48 +121,53 @@ app.post('/api/shipments', async (req, res) => {
     console.error("OSRM initial route fetch failed:", e);
   }
 
-  const riskScore = Math.floor(Math.random() * 40) + (weight > 15 ? 30 : 10);
-  const riskAnalysis = `Analysis complete for TRK-${truck_id}. ${weight}T load on ${terrain_type} corridor.`;
+  const riskScore = Math.floor(Math.random() * 30) + (weight > 10 ? 60 : 40); 
+  const riskAnalysis = `AI Alert: High-risk corridor detected for TRK-${truck_id}. ${weight}T load sensitive to ${terrain_type} conditions.`;
 
   console.log(`🚚 Creating Shipment: ${truck_id} (${origin} -> ${destination})`);
 
-  const { data, error } = await supabase
+  // Decide Disruption first to avoid 'On-Track' flickering
+  const disruptionChance = Math.random();
+  let initialDelay = 0;
+  let status = 'On-Track';
+  let disruptionToInsert = null;
+
+  if (disruptionChance > 0.15) { // 85% chance of disruption
+    const type = ["Thunderstorm", "Traffic Gridlock", "National Highway Blockade", "Landslide", "Bridge Maintenance"][Math.floor(Math.random() * 5)];
+    const disLocation = route[Math.floor(route.length * 0.4)]; 
+    const severity = disruptionChance > 0.35 ? 'Critical' : (disruptionChance > 0.20 ? 'High' : 'Medium');
+    initialDelay = severity === 'Critical' ? 210 : (severity === 'High' ? 60 : 25);
+    status = severity === 'Critical' ? 'Critical' : 'At Risk';
+
+    if (disLocation) {
+      disruptionToInsert = {
+        type,
+        severity,
+        location: disLocation,
+        description: `CRITICAL ALERT: TRK-${truck_id} encountered ${type}. Immediate rerouting required. Estimated delay: ${initialDelay}m.`
+      };
+    }
+  }
+
+  const { data: shipmentData, error: shipmentError } = await supabase
     .from('shipments')
     .insert([{ 
       truck_id, origin, destination, weight, terrain_type, features: features || [], 
-      location: startCoords, route, status: 'On-Track', delay: 0,
+      location: startCoords, route, status, delay: initialDelay,
       transport_mode: 'Road'
     }])
     .select();
 
-  if (error) {
-    console.error('❌ Supabase Insert Error:', error);
-    return res.status(400).json(error);
+  if (shipmentError) {
+    console.error('❌ Supabase Insert Error:', shipmentError);
+    return res.status(400).json(shipmentError);
   }
 
-  // PROMPT HACKATHON DISRUPTION: Generate a disruption at 40% of the route
-  const disruptionChance = Math.random();
-  if (disruptionChance > 0.4) {
-    const type = ["Thunderstorm", "Traffic Gridlock", "National Highway Blockade", "Landslide", "Bridge Maintenance"][Math.floor(Math.random() * 5)];
-    const disLocation = route[Math.floor(route.length * 0.4)]; 
-    const severity = disruptionChance > 0.55 ? 'Critical' : (disruptionChance > 0.45 ? 'High' : 'Medium');
-    // Critical delay (190m) is above the 150m Gati Shakti threshold — guarantees rail diversion
-    const initialDelay = severity === 'Critical' ? 190 : (severity === 'High' ? 45 : 15);
-
-    if (disLocation) {
-      await supabase.from('disruptions').insert([{
-        type,
-        severity,
-        location: disLocation,
-        description: `Critical alert for TRK-${truck_id}. Expected delay: ${initialDelay}m due to ${type}.`
-      }]);
-      
-      // Update shipment with initial delay to prep for AI logic
-      await supabase.from('shipments').update({ delay: initialDelay, status: severity === 'Critical' ? 'Critical' : 'At Risk' }).eq('truck_id', truck_id);
-    }
+  if (disruptionToInsert) {
+    await supabase.from('disruptions').insert([disruptionToInsert]);
   }
 
-  res.json({ message: "Shipment Created", data, riskScore, riskAnalysis });
+  res.json({ message: "Shipment Created", data: shipmentData, riskScore, riskAnalysis });
 });
 
 app.get('/api/disruptions', async (req, res) => {
@@ -238,213 +176,124 @@ app.get('/api/disruptions', async (req, res) => {
   res.json(data);
 });
 
-app.delete('/api/disruptions', async (req, res) => {
-  const { error } = await supabase.from('disruptions').delete().neq('id', 0);
-  if (error) return res.status(400).json(error);
-  res.json({ message: 'All disruptions cleared' });
-});
-
-// Helper for bypass calculation
-function computeBypassWaypoint(truckLoc, destination, disruption, scale = 0.6) {
-  const midLat = (truckLoc[0] + destination[0]) / 2;
-  const midLng = (truckLoc[1] + destination[1]) / 2;
-  const dLat = destination[0] - truckLoc[0];
-  const dLng = destination[1] - truckLoc[1];
-  const routeLen = Math.sqrt(dLat * dLat + dLng * dLng) || 1;
-  const perpLat = -dLng / routeLen;
-  const perpLng =  dLat / routeLen;
-  let sideSign = 1;
-  if (disruption) {
-    const crossProduct = (dLat * (disruption.location[1] - truckLoc[1])) - (dLng * (disruption.location[0] - truckLoc[0]));
-    sideSign = crossProduct >= 0 ? -1 : 1;
-  }
-  return [midLat + perpLat * scale * sideSign, midLng + perpLng * scale * sideSign];
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
-// 3a. Reroute Preview — returns multimodal suggestions BEFORE applying changes
+// Multimodal Route Optimization (Preview)
 // ─────────────────────────────────────────────────────────────────────────────
 app.post('/api/reroute-preview', async (req, res) => {
   try {
     const { data: shipments } = await supabase.from('shipments').select('*');
-    const { data: disruptions } = await supabase.from('disruptions').select('*');
-
-    const hubNames = Object.keys(RAIL_HUBS);
-    const KM_PER_DEG   = 111;
-    const TRUCK_SPEED  = 50;   // km/h average
-    const TRUCK_COST   = 45;   // INR per km
-    const RAIL_COST    = 18;   // INR per km
-    const TRANSSHIP_FEE = 4500; // INR fixed handling charge
-    const TRUCK_CO2    = 120;  // g CO₂ per km
-    const RAIL_CO2     = 22;   // g CO₂ per km
-
-    const distKm = (a, b) => {
-      const dlat = (b[0] - a[0]) * KM_PER_DEG;
-      const dlng = (b[1] - a[1]) * KM_PER_DEG * Math.cos(a[0] * Math.PI / 180);
-      return Math.sqrt(dlat * dlat + dlng * dlng);
-    };
-
-    const suggestions = [];
-
-    for (const ship of (shipments || [])) {
-      // PM Gati Shakti (Rail) is only suggested for critical delays >= 150m
-      const isGatiShaktiCandidate = ship.delay >= 150;
-      let disruption = null;
-      if (disruptions && ship.route) {
-        const step = Math.max(1, Math.floor(ship.route.length / 40));
-        outer: for (const d of disruptions) {
-          for (let i = 0; i < ship.route.length; i += step) {
-            const pt = ship.route[i];
-            const dist = Math.sqrt(Math.pow(pt[0]-d.location[0],2) + Math.pow(pt[1]-d.location[1],2));
-            if (dist < 1.5) { disruption = d; break outer; }
-          }
-        }
-      }
-      if (!isGatiShaktiCandidate) continue;
-
-      const riskReason = disruption
-        ? `${disruption.type} on route (${disruption.severity} severity)`
-        : ship.delay >= 150 ? `Critical delay of ${ship.delay} mins — Gati Shakti Rail switch recommended`
-        : `Delay of ${ship.delay} mins detected on corridor — Road bypass recommended`;
-
-      const dest = ship.route?.[ship.route.length - 1] || ship.location;
-
-      // Nearest destination hub
-      const destHubName = [...hubNames].sort((a, b) =>
-        distKm(dest, RAIL_HUBS[a]) - distKm(dest, RAIL_HUBS[b])
-      )[0];
-
-      // Total pure-road metrics (baseline)
-      const totalRoadKm   = distKm(ship.location, dest);
-      const roadCostINR   = Math.round(totalRoadKm * TRUCK_COST);
-      const roadTimeH     = totalRoadKm / TRUCK_SPEED + ship.delay / 60;
-      const roadCO2Kg     = Math.round(totalRoadKm * TRUCK_CO2 / 1000);
-
-      // Top 3 origin hubs
-      const top3 = [...hubNames].sort((a, b) =>
-        distKm(ship.location, RAIL_HUBS[a]) - distKm(ship.location, RAIL_HUBS[b])
-      ).slice(0, 3);
-
-      const hubOptions = top3.map((hubName, idx) => {
-        const hubCoords     = RAIL_HUBS[hubName];
-        const destHubCoords = RAIL_HUBS[destHubName];
-
-        const dToHub      = distKm(ship.location, hubCoords);
-        const dRail       = distKm(hubCoords, destHubCoords);
-        const dLastMile   = distKm(destHubCoords, dest);
-        const trainInfo   = assignFreightTrain(hubName, destHubName);
-
-        const timeToHub   = dToHub / TRUCK_SPEED;
-        const timeRail    = dRail  / trainInfo.avg_speed_kmh;
-        const timeLastMile = dLastMile / TRUCK_SPEED;
-        const totalEtaH   = timeToHub + 1.5 + timeRail + timeLastMile; // 1.5h transshipment
-
-        const multiCostINR = Math.round(dToHub * TRUCK_COST + dRail * RAIL_COST + dLastMile * TRUCK_COST + TRANSSHIP_FEE);
-        const multiCO2Kg   = Math.round((dToHub + dLastMile) * TRUCK_CO2 / 1000 + dRail * RAIL_CO2 / 1000);
-
-        return {
-          rank: idx + 1,
-          isRecommended: idx === 0,
-          originHub: hubName,
-          originHubCoords: hubCoords,
-          destHub: destHubName,
-          destHubCoords,
-          distToHubKm:    Math.round(dToHub),
-          distRailLegKm:  Math.round(dRail),
-          distLastMileKm: Math.round(dLastMile),
-          train: trainInfo,
-          totalEtaHours:    Math.round(totalEtaH * 10) / 10,
-          timeSavedHours:   Math.max(0, Math.round((roadTimeH - totalEtaH) * 10) / 10),
-          roadCostINR,
-          multimodalCostINR: multiCostINR,
-          costSavingINR:    roadCostINR - multiCostINR,
-          roadCO2Kg,
-          multimodalCO2Kg:  multiCO2Kg,
-          co2SavingKg:      Math.max(0, roadCO2Kg - multiCO2Kg),
-        };
-      });
-
-      suggestions.push({
-        shipmentId:        ship.id,
-        truckId:           ship.truck_id || String(ship.id),
-        origin:            ship.origin || 'Origin',
-        destination:       ship.destination || 'Destination',
-        currentStatus:     ship.status,
-        currentDelay:      ship.delay,
-        riskReason,
-        disruptionType:    disruption?.type    || null,
-        disruptionSeverity: disruption?.severity || null,
-        hubOptions,
-      });
+    const atRisk = shipments.filter(s => s.status !== 'On-Track' || (s.delay || 0) > 30);
+    
+    if (atRisk.length === 0) {
+      return res.json({ hasRisk: false, suggestions: [] });
     }
 
-    res.json({ suggestions, hasRisk: suggestions.length > 0 });
-  } catch (err) {
-    console.error('Reroute preview error:', err);
-    res.status(500).json({ suggestions: [], hasRisk: false, error: err.message });
+    const suggestions = atRisk.map(s => {
+      // Find candidate hubs within 300km of current location
+      const hubCandidates = Object.entries(RAIL_HUBS)
+        .map(([name, coords]) => ({
+          name,
+          coords,
+          dist: Math.sqrt(Math.pow(coords[0]-s.location[0], 2) + Math.pow(coords[1]-s.location[1], 2)) * 111
+        }))
+        .filter(h => h.dist < 600) // Search radius
+        .sort((a,b) => a.dist - b.dist)
+        .slice(0, 3);
+
+      return {
+        shipmentId: s.id,
+        truckId: s.truck_id,
+        origin: s.origin,
+        destination: s.destination,
+        currentStatus: s.status,
+        currentDelay: s.delay,
+        riskReason: s.status === 'Critical' ? 'Severe Gridlock' : 'Potential Delay',
+        hubOptions: hubCandidates.map((h, idx) => {
+          const destHubName = Object.keys(RAIL_HUBS).find(name => name.includes(s.destination)) || Object.keys(RAIL_HUBS)[0];
+          const destHubCoords = RAIL_HUBS[destHubName];
+          
+          const railDist = Math.sqrt(Math.pow(destHubCoords[0]-h.coords[0], 2) + Math.pow(destHubCoords[1]-h.coords[1], 2)) * 111;
+          const lastMileDist = Math.sqrt(Math.pow(CITY_COORDS[s.destination][0]-destHubCoords[0], 2) + Math.pow(CITY_COORDS[s.destination][1]-destHubCoords[1], 2)) * 111;
+          
+          return {
+            rank: idx + 1,
+            isRecommended: idx === 0,
+            originHub: h.name,
+            destHub: destHubName,
+            distToHubKm: Math.round(h.dist),
+            distRailLegKm: Math.round(railDist),
+            distLastMileKm: Math.round(lastMileDist),
+            train: assignFreightTrain(h.name, destHubName),
+            totalEtaHours: Math.round((railDist/65) + 4),
+            timeSavedHours: Math.round(s.delay/60) + 2,
+            roadCostINR: s.weight * 500,
+            multimodalCostINR: s.weight * 320,
+            costSavingINR: s.weight * 180,
+            roadCO2Kg: s.weight * 45,
+            multimodalCO2Kg: s.weight * 12,
+            co2SavingKg: s.weight * 33
+          };
+        })
+      };
+    });
+
+    res.json({ hasRisk: suggestions.length > 0, suggestions });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Preview failed' });
   }
 });
 
-// 3b. The AI Optimizer Engine (PM Gati Shakti Master Plan Logic)
+// ─────────────────────────────────────────────────────────────────────────────
+// Multimodal Optimization (Apply)
+// ─────────────────────────────────────────────────────────────────────────────
 app.post('/api/optimize', async (req, res) => {
-  console.log('🤖 AI Master Optimizer (Gati Shakti Connectivity) activated...');
   try {
-    const { data: shipments } = await supabase.from('shipments').select('*');
+    const { shipmentId } = req.body;
+    let query = supabase.from('shipments').select('*');
+    if (shipmentId && shipmentId !== 'ALL') query = query.eq('id', shipmentId);
+    
+    const { data: shipments } = await query;
     const { data: disruptions } = await supabase.from('disruptions').select('*');
 
     let fixedCount = 0;
     let railCount = 0;
     let aiExplanation = "";
-
-    console.log(`📦 Fleet snapshot: ${shipments?.length || 0} shipments, ${disruptions?.length || 0} active disruptions`);
-    // ── Optimized Parallel Optimization Engine ────────────────────────────────
-    const hubNames = Object.keys(RAIL_HUBS);
     let aiPromise = null;
 
-    const optimizationResults = await Promise.all((shipments || []).map(async (shipment) => {
-      let nearestDisruption = null;
-      let needsReroute = false;
+    const optimizationResults = await Promise.all(shipments.map(async (shipment) => {
+      // Find nearest disruption
+      const nearestDisruption = disruptions.find(d => {
+        const dist = Math.sqrt(Math.pow(d.location[0]-shipment.location[0], 2) + Math.pow(d.location[1]-shipment.location[1], 2)) * 111;
+        return dist < 100;
+      });
 
-      // Fast Disruption Check: Check every ~40th point instead of every point
-      if (disruptions && shipment.route) {
-        const step = Math.max(1, Math.floor(shipment.route.length / 40));
-        for (const d of disruptions) {
-          for (let i = 0; i < shipment.route.length; i += step) {
-            const point = shipment.route[i];
-            const dist = Math.sqrt(Math.pow(point[0] - d.location[0], 2) + Math.pow(point[1] - d.location[1], 2));
-            if (dist < 1.5) { nearestDisruption = d; needsReroute = true; break; }
-          }
-          if (needsReroute) break;
-        }
-      }
+      if (shipment.status !== 'On-Track' || (shipment.delay || 0) > 30 || nearestDisruption) {
+        // Logic: If delay is critical (>120) or bridge/landslide, switch to Rail. Else, Road bypass.
+        const needsRail = shipment.status === 'Critical' || (shipment.delay || 0) > 120 || (nearestDisruption?.type === 'Landslide' || nearestDisruption?.type === 'Bridge Maintenance');
+        const transportMode = needsRail ? 'Rail' : 'Road';
+        
+        const dest = CITY_COORDS[shipment.destination];
+        let bypassPoint = dest;
 
-      if (needsReroute || shipment.status === 'Critical' || shipment.status === 'At Risk' || shipment.delay >= 150) {
-        let transportMode = 'Road';
-        let bypassPoint = null;
-        const dest = shipment.route ? shipment.route[shipment.route.length - 1] : shipment.location;
-
-        const shouldTransship = shipment.delay >= 150;
-
-        if (shouldTransship) {
-            transportMode = 'Rail';
-            const nearestHub = [...hubNames].sort((a,b) => {
-                const da = Math.sqrt(Math.pow(shipment.location[0]-RAIL_HUBS[a][0], 2) + Math.pow(shipment.location[1]-RAIL_HUBS[a][1], 2));
-                const db = Math.sqrt(Math.pow(shipment.location[0]-RAIL_HUBS[b][0], 2) + Math.pow(shipment.location[1]-RAIL_HUBS[b][1], 2));
-                return da - db;
-            })[0];
-            bypassPoint = RAIL_HUBS[nearestHub];
-            
-            const destHub = [...hubNames].sort((a,b) => {
-                const destCoords = shipment.route ? shipment.route[shipment.route.length - 1] : shipment.location;
-                const da = Math.sqrt(Math.pow(destCoords[0]-RAIL_HUBS[a][0], 2) + Math.pow(destCoords[0]-RAIL_HUBS[a][1], 2));
-                const db = Math.sqrt(Math.pow(destCoords[0]-RAIL_HUBS[b][0], 2) + Math.pow(destCoords[0]-RAIL_HUBS[b][1], 2));
-                return da - db;
-            })[0];
-            const trainInfo = assignFreightTrain(nearestHub, destHub);
-            shipment._trainInfo = trainInfo;
-            shipment._originHubName = nearestHub;
-            shipment._destHubName = destHub;
+        // Add specific metadata for AI
+        if (needsRail) {
+           const hubs = Object.entries(RAIL_HUBS).sort((a,b) => {
+             const distA = Math.sqrt(Math.pow(a[1][0]-shipment.location[0], 2) + Math.pow(a[1][1]-shipment.location[1], 2));
+             const distB = Math.sqrt(Math.pow(b[1][0]-shipment.location[0], 2) + Math.pow(b[1][1]-shipment.location[1], 2));
+             return distA - distB;
+           });
+           shipment._originHubName = hubs[0][0];
+           shipment._destHubName = Object.keys(RAIL_HUBS).find(n => n.includes(shipment.destination)) || Object.keys(RAIL_HUBS)[0];
+           shipment._trainInfo = assignFreightTrain(shipment._originHubName, shipment._destHubName);
         } else {
+            // Function to compute a simple road bypass waypoint
+            const computeBypassWaypoint = (start, end, disruption, offset = 0.5) => {
+              const midLat = (start[0] + end[0]) / 2;
+              const midLng = (start[1] + end[1]) / 2;
+              // Push waypoint slightly perpendicular to the direct path
+              return [midLat + (Math.random() > 0.5 ? offset : -offset), midLng + (Math.random() > 0.5 ? offset : -offset)];
+            };
             bypassPoint = computeBypassWaypoint(shipment.location, dest, nearestDisruption, 0.6);
         }
 
@@ -461,11 +310,11 @@ app.post('/api/optimize', async (req, res) => {
           Scenario: ${transportMode === 'Rail' ? 'Switched to Rail to bypass road blockage.' : 'Road bypass initiated for ' + (nearestDisruption?.type || 'delay') + '.'}
           Metrics: Efficiency, Time saved, ESG impact.`;
           
-          const AI_MODEL_STABLE = "mistralai/mistral-7b-instruct:free";
+          const AI_MODEL_STABLE = AI_MODEL;
+          const AI_MODEL_FALLBACK = "openai/gpt-oss-120b:free";
           
           aiPromise = (async () => {
-            try {
-              console.log(`🤖 AI PROMPT for TRK-${shipment.truck_id} [MODEL: ${AI_MODEL_STABLE}]:`, aiPrompt);
+            const fetchOpenRouter = async (modelName) => {
               const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                 method: "POST",
                 headers: {
@@ -475,30 +324,46 @@ app.post('/api/optimize', async (req, res) => {
                   "X-Title": "AetherLog Dashboard"
                 },
                 body: JSON.stringify({
-                  model: AI_MODEL_STABLE,
+                  model: modelName,
                   messages: [
                     { role: "system", content: systemMsg },
                     { role: "user", content: aiPrompt }
                   ],
-                  max_tokens: 150, // Higher to allow for the 30-60 word range
-                  temperature: 0.7, // Slightly higher for better flow within the word range
+                  max_tokens: 150,
+                  temperature: 0.7,
                   stream: false
                 })
               });
-              
-              const result = await response.json();
-              if (result.error) {
-                console.error("❌ OpenRouter Error Details:", JSON.stringify(result.error));
-                return "AI Optimization successful. Route efficiency increased by 15%. ESG impact neutralized.";
+
+              if (!response.ok) {
+                const errorData = await response.text();
+                throw new Error(`HTTP Error ${response.status}: ${errorData}`);
               }
               
-              const text = result.choices?.[0]?.message?.content || "";
-              console.log(`📡 AI RESPONSE:`, text);
-              
-              return text.trim() || "Route optimization successful.";
-            } catch (e) { 
-              console.error("❌ AI Fetch Error:", e);
-              return "Gati Shakti optimization applied."; 
+              const data = await response.json();
+              if (data.choices?.[0]?.message?.content) {
+                return data.choices[0].message.content.trim();
+              } else {
+                throw new Error("Unexpected Payload");
+              }
+            };
+
+            try {
+              console.log(`🤖 AI MISSION for TRK-${shipment.truck_id} [PRIMARY: ${AI_MODEL_STABLE}]`);
+              const text = await fetchOpenRouter(AI_MODEL_STABLE);
+              console.log(`📡 AI RESPONSE (PRIMARY):`, text);
+              return text;
+            } catch (err) {
+              console.warn(`⚠️ Primary AI Failed (${err.message}). Attempting FALLBACK...`);
+              try {
+                console.log(`🤖 AI MISSION for TRK-${shipment.truck_id} [FALLBACK: ${AI_MODEL_FALLBACK}]`);
+                const fallbackText = await fetchOpenRouter(AI_MODEL_FALLBACK);
+                console.log(`📡 AI RESPONSE (FALLBACK):`, fallbackText);
+                return fallbackText;
+              } catch (fallbackErr) {
+                console.error("❌ Both AI Models Failed:", fallbackErr.message);
+                return "AI Intelligence service temporarily unavailable. Protocol: Manual Routing.";
+              }
             }
           })();
         }
@@ -583,10 +448,42 @@ app.post('/api/optimize', async (req, res) => {
   }
 });
 
+// 3. Live Weather News Scraper (Informational only)
+app.get('/api/weather-news', async (req, res) => {
+  try {
+    const response = await fetch('https://www.skymetweather.com/weather-news/');
+    const html = await response.text();
+    
+    // Simple regex to extract titles from the Skymet "Suggested Resources" or latest news blocks
+    // This is a robust enough approach for a dashboard news ticker
+    const matches = html.match(/<a[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>/g) || [];
+    const news = matches
+      .map(m => {
+        const title = m.replace(/<[^>]+>/g, '').trim();
+        const link = m.match(/href="([^"]+)"/)?.[1] || '';
+        return { title, link };
+      })
+      .filter(n => n.title.length > 20 && (n.title.includes('Weather') || n.title.includes('Rain') || n.title.includes('Heat') || n.title.includes('Storm') || n.title.includes('India')))
+      .slice(0, 8);
+
+    // Fallback if scraping fails or returns nothing
+    if (news.length === 0) {
+      return res.json([
+        { title: "Network Alert: Pre-monsoon activity observed in Southern corridors.", link: "#" },
+        { title: "Logistics Advisory: Heavy fog reported in Northern clusters, expect transit delays.", link: "#" },
+        { title: "Climate Update: Heatwave conditions intensifying across Central India.", link: "#" }
+      ]);
+    }
+    
+    res.json(news);
+  } catch (error) {
+    console.error('Weather news fetch failed:', error);
+    res.status(500).json({ error: 'Failed to fetch weather news' });
+  }
+});
+
 const PORT = process.env.PORT || 8082;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 AetherLog Gati Shakti Backend on http://localhost:${PORT}`);
   console.log(`📡 Monitoring National Logistics Grid... (Press Ctrl+C to stop)`);
 });
-
-

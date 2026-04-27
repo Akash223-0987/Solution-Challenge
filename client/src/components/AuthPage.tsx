@@ -8,6 +8,8 @@ interface AuthPageProps {
   onClose: () => void;
 }
 
+import { AetherLogLogo } from './AetherLogLogo';
+
 const AuthPage: React.FC<AuthPageProps> = ({ initialMode, onAuthComplete, onClose }) => {
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
   const [email, setEmail] = useState('');
@@ -68,22 +70,25 @@ const AuthPage: React.FC<AuthPageProps> = ({ initialMode, onAuthComplete, onClos
 
   return (
     <div className="auth-root">
+      <div className="auth-scanline" />
+
       {/* Navbar with back/close */}
       <nav className="auth-navbar">
-        <div className="auth-logo" onClick={onClose} style={{ cursor: 'pointer' }}>
-          <span className="auth-logo-text">AETHERLOG</span>
+        <div className="auth-logo">
+          <AetherLogLogo size={36} glow />
+          <div className="auth-logo-text">AETHER<span className="auth-logo-main">LOG</span></div>
         </div>
       </nav>
 
       {/* Auth Card */}
       <div className="auth-card">
         <h1 className="auth-title">
-          {mode === 'signin' ? 'Welcome Back' : 'Create an Account'}
+          {mode === 'signin' ? 'Sign In' : 'Create Account'}
         </h1>
         <p className="auth-subtitle">
           {mode === 'signin' 
-            ? 'Enter your details to access your fleet control center.' 
-            : 'Join AetherLog to manage your logistics network.'}
+            ? 'Initialize your session to manage the national fleet.' 
+            : 'Join the AetherLog network to optimize your logistics operations.'}
         </p>
 
         {error && (

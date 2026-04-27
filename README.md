@@ -117,6 +117,47 @@ One-click deployment of 5 predefined routes for instant presentation:
 └─────────────────────────────────────────────────────────┘
 ```
 
+### 📊 Data Flow Diagram
+
+```mermaid
+flowchart LR
+    subgraph "1️⃣ USER INTERACTION"
+        UI[User Request]
+        VAL[Zod Validation]
+    end
+
+    subgraph "2️⃣ API PROCESSING"
+        AUTH[JWT Auth<br/>Supabase]
+        CACHE{Redis Cache<br/>TTL: 5min}
+        QUEUE[BullMQ Queue<br/>Priority]
+    end
+
+    subgraph "3️⃣ BUSINESS LOGIC"
+        OSRM[OSRM Routing<br/>Dijkstra/A*]
+        AI[Gemini AI<br/>Route Optimization]
+        POSTGIS[(PostGIS Query<br/>Spatial Index)]
+        WS[WebSocket<br/>Broadcast]
+    end
+
+    subgraph "4️⃣ RESPONSE"
+        GEO[GeoJSON Format]
+        MAP[Leaflet Render]
+        FEED[AI Feed Update]
+    end
+
+    UI --> VAL --> AUTH --> CACHE
+    CACHE -->|Miss| QUEUE
+    CACHE -->|Hit| GEO
+    QUEUE --> OSRM
+    QUEUE --> AI
+    QUEUE --> POSTGIS
+    OSRM --> GEO
+    AI --> FEED
+    POSTGIS --> GEO
+    GEO --> MAP
+    WS --> FEED
+```
+
 ---
 
 ## 🛠️ Tech Stack

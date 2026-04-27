@@ -104,6 +104,19 @@ app.delete('/api/shipments/:id', async (req, res) => {
   res.json({ success: true });
 });
 
+// Clear All Shipments (user-scoped)
+app.delete('/api/shipments-all', async (req, res) => {
+  const { userId } = req.query;
+  if (!userId) return res.status(400).json({ error: "userId required to clear shipments" });
+
+  const { error } = await supabase.from('shipments').delete().eq('user_id', userId);
+  if (error) {
+    console.error('❌ Supabase Clear All Error:', error);
+    return res.status(400).json(error);
+  }
+  res.json({ success: true });
+});
+
 // 2. Create Shipment with AI Risk Analysis and Auto-Disruption
 app.post('/api/shipments', async (req, res) => {
   let { truck_id, origin, destination, weight, terrain_type, features, user_id } = req.body;

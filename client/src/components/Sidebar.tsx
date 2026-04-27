@@ -36,10 +36,28 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, setFocusedLocation, 
         method: 'DELETE'
       });
       if (!response.ok) throw new Error('Delete failed');
-      // No need to manually update state here as App.tsx has a 3s poll interval
     } catch (err) {
       console.error(err);
       alert('Failed to remove truck');
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (!window.confirm('Are you sure you want to clear ALL trucks from your simulation?')) return;
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      if (!userId) throw new Error('User not found');
+
+      const response = await fetch(`${BASE}/api/shipments-all?userId=${userId}`, {
+        method: 'DELETE'
+      });
+      if (!response.ok) throw new Error('Clear all failed');
+      setFilterModal(null);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to clear shipments');
     }
   };
 
@@ -57,7 +75,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, setFocusedLocation, 
 
   return (
     <>
-    {/* Mobile Backdrop Overlay */}
     {isOpen && (
       <div 
         className="fixed inset-0 bg-black/60 backdrop-blur-md z-[2000] md:hidden transition-opacity duration-300" 
@@ -70,7 +87,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, setFocusedLocation, 
     }`}>
       <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_50%,rgba(0,229,160,0.01)_50%)] bg-[length:100%_4px] pointer-events-none opacity-50 z-10" />
 
-      {/* Drill-down Filter Modal Overlay */}
       {filterModal && (
         <div className="absolute inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col animate-in slide-in-from-left duration-300">
           <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
@@ -78,12 +94,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, setFocusedLocation, 
               <h3 className="font-bold text-[#00E5A0]">{filterModal.title}</h3>
               <p className="text-[10px] text-white/40 uppercase tracking-widest">{filterModal.list.length} units listed</p>
             </div>
-            <button 
-              onClick={() => setFilterModal(null)}
-              className="p-1 px-3 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold transition-colors"
-            >
-              CLOSE
-            </button>
+            <div className="flex gap-2">
+              <button 
+                onClick={handleClearAll}
+                className="p-1 px-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[10px] font-bold transition-colors border border-red-500/20"
+              >
+                CLEAR ALL
+              </button>
+              <button 
+                onClick={() => setFilterModal(null)}
+                className="p-1 px-3 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold transition-colors"
+              >
+                CLOSE
+              </button>
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
             {filterModal.list.map(ship => (
@@ -92,7 +116,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, setFocusedLocation, 
                 onClick={() => {
                   setFocusedLocation(ship.location);
                   setFilterModal(null);
-                  // Auto-switch view mode based on the shipment clicked
                   if (ship.transport_mode === 'Rail') {
                     setViewMode('Rail');
                   } else {
@@ -120,7 +143,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, setFocusedLocation, 
         </div>
       )}
 
-      {/* Backend Offline Error Banner */}
       {fetchError && (
         <div className="mx-3 mt-3 p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center gap-2 animate-pulse">
           <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
@@ -130,7 +152,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, setFocusedLocation, 
         </div>
       )}
 
-      {/* Header */}
       <div className="p-6 border-b border-white/5 flex justify-between items-start relative z-20">
         <div className="flex items-center gap-3">
           <AetherLogLogo size={40} glow />
@@ -173,7 +194,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, setFocusedLocation, 
         </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="p-4 grid grid-cols-2 gap-3 relative z-20">
         <div 
           onClick={() => handleStatClick("Active Fleet", shipments)}
@@ -220,7 +240,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, setFocusedLocation, 
         </div>
       </div>
 
-      {/* AI Reasoning Panel */}
       {aiExplanation && (
         <div className="mx-4 mb-4 p-4 bg-[#00E5A0]/5 border border-[#00E5A0]/20 rounded-2xl animate-in fade-in slide-in-from-top-4 duration-500 relative flex flex-col max-h-[400px] backdrop-blur-xl">
           <div className="flex items-center justify-between mb-2">
@@ -243,22 +262,31 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, setFocusedLocation, 
         </div>
       )}
 
-      {/* Disruption Feed */}
       <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3 relative z-20 custom-scrollbar">
         <div className="flex items-center justify-between sticky top-0 bg-black/80 backdrop-blur-sm py-2 z-10">
           <h3 className="text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">
             Disruption & Risk Feed
           </h3>
-          {activeFilter && (
-            <button
-              onClick={() => setActiveFilter(null)}
-              className="flex items-center gap-1 text-[9px] bg-[#00E5A0]/10 hover:bg-[#00E5A0]/20 border border-[#00E5A0]/20 text-[#00E5A0] font-bold px-2 py-0.5 rounded-full transition-colors"
-            >
-              <Focus className="w-2.5 h-2.5" />
-              {activeFilter.label}
-              <X className="w-2.5 h-2.5" />
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {shipments.length > 0 && (
+              <button
+                onClick={handleClearAll}
+                className="text-[9px] text-red-400/50 hover:text-red-400 font-bold uppercase tracking-widest transition-colors"
+              >
+                Clear All
+              </button>
+            )}
+            {activeFilter && (
+              <button
+                onClick={() => setActiveFilter(null)}
+                className="flex items-center gap-1 text-[9px] bg-[#00E5A0]/10 hover:bg-[#00E5A0]/20 border border-[#00E5A0]/20 text-[#00E5A0] font-bold px-2 py-0.5 rounded-full transition-colors"
+              >
+                <Focus className="w-2.5 h-2.5" />
+                {activeFilter.label}
+                <X className="w-2.5 h-2.5" />
+              </button>
+            )}
+          </div>
         </div>
         
         {viewMode === 'Road' && disruptions.map((dis) => (
@@ -338,7 +366,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, setFocusedLocation, 
         )}
       </div>
 
-      {/* Action Buttons */}
       <div className="p-4 bg-black/80 backdrop-blur-xl space-y-3 relative z-30 border-t border-white/5">
         <button 
           onClick={onOpenAddTruckModal}
@@ -368,7 +395,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, setFocusedLocation, 
       </div>
     </aside>
     </>
-
   );
 };
 

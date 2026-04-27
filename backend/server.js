@@ -78,7 +78,14 @@ const AI_MODEL = "google/gemma-4-31b-it:free";
 
 // 1. Fetch Shipments
 app.get('/api/shipments', async (req, res) => {
-  const { data, error } = await supabase.from('shipments').select('*');
+  const { userId } = req.query;
+  
+  let query = supabase.from('shipments').select('*');
+  if (userId) {
+    query = query.eq('user_id', userId);
+  }
+
+  const { data, error } = await query;
   if (error) {
     console.error('❌ Supabase Fetch Error:', error);
     return res.status(400).json(error);
@@ -88,7 +95,7 @@ app.get('/api/shipments', async (req, res) => {
 
 // 2. Create Shipment with AI Risk Analysis and Auto-Disruption
 app.post('/api/shipments', async (req, res) => {
-  let { truck_id, origin, destination, weight, terrain_type, features } = req.body;
+  let { truck_id, origin, destination, weight, terrain_type, features, user_id } = req.body;
   
   // Trim whitespace
   origin = origin?.trim();
@@ -154,7 +161,8 @@ app.post('/api/shipments', async (req, res) => {
     .insert([{ 
       truck_id, origin, destination, weight, terrain_type, features: features || [], 
       location: startCoords, route, status, delay: initialDelay,
-      transport_mode: 'Road'
+      transport_mode: 'Road',
+      user_id: user_id || null
     }])
     .select();
 
@@ -181,7 +189,13 @@ app.get('/api/disruptions', async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 app.post('/api/reroute-preview', async (req, res) => {
   try {
-    const { data: shipments } = await supabase.from('shipments').select('*');
+    const { userId } = req.body;
+    let query = supabase.from('shipments').select('*');
+    if (userId) {
+      query = query.eq('user_id', userId);
+    }
+    
+    const { data: shipments } = await query;
     const atRisk = shipments.filter(s => s.status !== 'On-Track' || (s.delay || 0) > 30);
     
     if (atRisk.length === 0) {
@@ -249,9 +263,13 @@ app.post('/api/reroute-preview', async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 app.post('/api/optimize', async (req, res) => {
   try {
-    const { shipmentId } = req.body;
+    const { shipmentId, userId } = req.body;
     let query = supabase.from('shipments').select('*');
-    if (shipmentId && shipmentId !== 'ALL') query = query.eq('id', shipmentId);
+    if (shipmentId && shipmentId !== 'ALL') {
+      query = query.eq('id', shipmentId);
+    } else if (userId) {
+      query = query.eq('user_id', userId);
+    }
     
     const { data: shipments } = await query;
     const { data: disruptions } = await supabase.from('disruptions').select('*');

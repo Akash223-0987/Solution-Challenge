@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Truck, Weight, MapPin, Calendar, Mountain, Anchor, Navigation, Loader2 } from 'lucide-react';
 import { CITIES } from '../data/cities';
+import { supabase } from '../lib/supabase';
 
 interface AddTruckModalProps {
   isOpen: boolean;
@@ -44,6 +45,9 @@ export default function AddTruckModal({ isOpen, onClose }: AddTruckModalProps) {
     setIsSubmitting(true);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const user_id = session?.user?.id;
+
       // We send the data to our backend which handles:
       // 1. Geocoding city names to coordinates
       // 2. Fetching real road route from OSRM
@@ -60,6 +64,7 @@ export default function AddTruckModal({ isOpen, onClose }: AddTruckModalProps) {
           destination: formData.destination,
           weight: formData.weight,
           terrain_type: formData.terrainType,
+          user_id: user_id,
           // We let the backend calculate location and route if not provided
         }),
       });

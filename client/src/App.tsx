@@ -51,8 +51,11 @@ function App() {
   useEffect(() => {
     const fetchAllData = async () => {
       try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id;
+
         const [shipRes, disrupRes] = await Promise.all([
-          fetch(`${BASE}/api/shipments`),
+          fetch(`${BASE}/api/shipments${userId ? `?userId=${userId}` : ''}`),
           fetch(`${BASE}/api/disruptions`).catch(() => null),
         ]);
 
@@ -90,10 +93,11 @@ function App() {
   const applyOptimization = useCallback(async () => {
     setIsApplyingRoutes(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const response = await fetch(`${BASE}/api/optimize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shipmentId: 'ALL' })
+        body: JSON.stringify({ shipmentId: 'ALL', userId: session?.user?.id })
       });
       const data = await response.json();
       if (data.success) {
@@ -116,9 +120,11 @@ function App() {
     setIsScanning(true);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const previewRes = await fetch(`${BASE}/api/reroute-preview`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: session?.user?.id })
       });
       const previewData = await previewRes.json();
 

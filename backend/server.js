@@ -93,6 +93,17 @@ app.get('/api/shipments', async (req, res) => {
   res.json(data);
 });
 
+// Delete Shipment
+app.delete('/api/shipments/:id', async (req, res) => {
+  const { id } = req.params;
+  const { error } = await supabase.from('shipments').delete().eq('id', id);
+  if (error) {
+    console.error('❌ Supabase Delete Error:', error);
+    return res.status(400).json(error);
+  }
+  res.json({ success: true });
+});
+
 // 2. Create Shipment with AI Risk Analysis and Auto-Disruption
 app.post('/api/shipments', async (req, res) => {
   let { truck_id, origin, destination, weight, terrain_type, features, user_id } = req.body;

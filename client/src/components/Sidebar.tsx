@@ -1,5 +1,5 @@
 import React from 'react';
-import { Truck, AlertTriangle, Clock, Zap, CloudLightning, Car, ShieldCheck, Focus, X, LogOut } from 'lucide-react';
+import { Truck, AlertTriangle, Clock, Zap, CloudLightning, Car, ShieldCheck, Focus, X, LogOut, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import ReactMarkdown from 'react-markdown';
 import type { Shipment, Disruption, ActiveFilter } from '../types';
@@ -23,7 +23,25 @@ interface SidebarProps {
   setViewMode: (mode: 'Road' | 'Rail') => void;
 }
 
+const BASE = import.meta.env.VITE_API_URL;
+
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, setFocusedLocation, isScanning, onRunOptimization, aiExplanation, onClearAiExplanation, onOpenAddTruckModal, shipments, disruptions, fetchError, activeFilter, setActiveFilter, viewMode, setViewMode }) => {
+
+  const handleDeleteShipment = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (!window.confirm('Are you sure you want to remove this truck from the simulation?')) return;
+    
+    try {
+      const response = await fetch(`${BASE}/api/shipments/${id}`, {
+        method: 'DELETE'
+      });
+      if (!response.ok) throw new Error('Delete failed');
+      // No need to manually update state here as App.tsx has a 3s poll interval
+    } catch (err) {
+      console.error(err);
+      alert('Failed to remove truck');
+    }
+  };
 
   const [filterModal, setFilterModal] = React.useState<{ title: string, list: Shipment[] } | null>(null);
 
@@ -276,7 +294,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, setFocusedLocation, 
                   setFocusedLocation(ship.location);
                 }
               }}
-              className={`p-3 rounded-xl border-l-4 text-sm transition-all cursor-pointer group backdrop-blur-md ${
+              className={`p-3 rounded-xl border-l-4 text-sm transition-all cursor-pointer group backdrop-blur-md relative ${
                 activeFilter?.type === 'shipment' && String(activeFilter.id) === String(ship.id)
                   ? 'bg-[#00E5A0]/10 border-l-[#00E5A0] ring-1 ring-[#00E5A0]/20'
                   : ship.status === 'Critical'
@@ -284,7 +302,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, setFocusedLocation, 
                   : 'bg-white/5 border-l-amber-500/50 hover:bg-white/10'
               }`}
             >
-              <div className="flex items-center justify-between mb-1">
+              <button 
+                onClick={(e) => handleDeleteShipment(e, String(ship.id))}
+                className="absolute top-2 right-2 p-1.5 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-red-400 rounded-lg transition-all z-20"
+                title="Remove Truck"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+
+              <div className="flex items-center justify-between mb-1 pr-6">
                 <span className="font-bold text-white uppercase text-xs flex items-center gap-1.5 tracking-tight">
                   {activeFilter?.type === 'shipment' && String(activeFilter.id) === String(ship.id) && (
                     <Focus className="w-3 h-3 text-[#00E5A0]" />

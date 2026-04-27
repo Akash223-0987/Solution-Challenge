@@ -40,6 +40,38 @@ export default function AddTruckModal({ isOpen, onClose }: AddTruckModalProps) {
     }));
   };
 
+  const deployPreset = async (preset: any) => {
+    setIsSubmitting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const user_id = session?.user?.id;
+
+      const response = await fetch(`${BASE}/api/shipments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          truck_id: preset.id,
+          origin: preset.from,
+          destination: preset.to,
+          weight: 20.0,
+          terrain_type: 'Highway',
+          user_id: user_id,
+          forcedStatus: preset.status,
+          forcedType: preset.type,
+          forcedDelay: preset.status === 'Critical' ? 120 : (preset.status === 'At Risk' ? 45 : 0)
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to deploy preset');
+      onClose();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to deploy demo preset');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -98,7 +130,7 @@ export default function AddTruckModal({ isOpen, onClose }: AddTruckModalProps) {
         <div className="absolute top-0 right-0 w-32 h-32 bg-[#00E5A0]/10 blur-3xl rounded-full -mr-16 -mt-16"></div>
         <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/5 blur-3xl rounded-full -ml-16 -mb-16"></div>
 
-        <div className="flex justify-between items-center mb-8 relative z-10">
+        <div className="flex justify-between items-center mb-6 relative z-10">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-[#00E5A0]/10 rounded-2xl border border-[#00E5A0]/20">
               <Truck className="w-6 h-6 text-[#00E5A0]" />
@@ -118,6 +150,33 @@ export default function AddTruckModal({ isOpen, onClose }: AddTruckModalProps) {
             </svg>
           </button>
         </div>
+
+        {/* HACKATHON DEMO PRESETS */}
+        <div className="mb-8 relative z-10">
+          <h3 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-3 ml-1">Hackathon Demo Presets</h3>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { id: 'GQ-MUM-DEL', label: 'Golden Quad', from: 'Mumbai', to: 'Delhi', status: 'On-Track', type: 'Nominal', color: 'bg-[#00E5A0]' },
+              { id: 'GS-CH-VIZ', label: 'Coastal Link', from: 'Chennai', to: 'Visakhapatnam', status: 'On-Track', type: 'Nominal', color: 'bg-[#00E5A0]' },
+              { id: 'SC-KOL-GUW', label: 'Siliguri Corridor', from: 'Kolkata', to: 'Guwahati', status: 'Critical', type: 'Landslide', color: 'bg-red-500' },
+              { id: 'IS-DEL-BEN', label: 'Industrial Spine', from: 'Delhi', to: 'Bengaluru', status: 'At Risk', type: 'Traffic Gridlock', color: 'bg-amber-500' },
+              { id: 'EL-NAG-MUM', label: 'Energy Hub', from: 'Nagpur', to: 'Mumbai', status: 'Critical', type: 'Highway Blockade', color: 'bg-red-500' },
+            ].map(preset => (
+              <button
+                key={preset.id}
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => deployPreset(preset)}
+                className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 hover:border-white/20 rounded-xl transition-all group"
+              >
+                <div className={`w-1.5 h-1.5 rounded-full ${preset.color} shadow-[0_0_8px_rgba(0,0,0,0.5)]`} />
+                <span className="text-[10px] font-bold text-white/60 group-hover:text-white transition-colors">{preset.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="h-px bg-white/5 w-full mb-8 relative z-10" />
         
         <form onSubmit={handleSubmit} className="relative z-10 grid grid-cols-2 gap-6">
           <div className="col-span-2">

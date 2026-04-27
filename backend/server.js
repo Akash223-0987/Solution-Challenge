@@ -157,27 +157,40 @@ app.post('/api/shipments', async (req, res) => {
 
   console.log(`🚚 Creating Shipment: ${truck_id} (${origin} -> ${destination})`);
 
-  // High-impact distribution: 15% On-Track, 20% At Risk, 65% Critical
-  const disruptionChance = Math.random();
-  let initialDelay = 0;
-  let status = 'On-Track';
+  // Handle Demo Presets or Random Logic
+  const { forcedStatus, forcedDelay, forcedType } = req.body;
+  let status = forcedStatus || 'On-Track';
+  let initialDelay = forcedDelay || 0;
   let disruptionToInsert = null;
 
-  if (disruptionChance > 0.15) { // 85% chance of disruption
-    const type = ["Thunderstorm", "Traffic Gridlock", "National Highway Blockade", "Landslide", "Bridge Maintenance"][Math.floor(Math.random() * 5)];
-    const disLocation = route[Math.floor(route.length * 0.4)]; 
-    const severity = disruptionChance > 0.35 ? 'Critical' : (disruptionChance > 0.20 ? 'High' : 'Medium');
-    initialDelay = severity === 'Critical' ? 210 : (severity === 'High' ? 60 : 25);
-    status = severity === 'Critical' ? 'Critical' : 'At Risk';
+  if (!forcedStatus) {
+    // High-impact distribution: 15% On-Track, 20% At Risk, 65% Critical
+    const disruptionChance = Math.random();
+    
+    if (disruptionChance > 0.15) { // 85% chance of disruption
+      const type = ["Thunderstorm", "Traffic Gridlock", "National Highway Blockade", "Landslide", "Bridge Maintenance"][Math.floor(Math.random() * 5)];
+      const disLocation = route[Math.floor(route.length * 0.4)]; 
+      const severity = disruptionChance > 0.35 ? 'Critical' : (disruptionChance > 0.20 ? 'High' : 'Medium');
+      initialDelay = severity === 'Critical' ? 210 : (severity === 'High' ? 60 : 25);
+      status = severity === 'Critical' ? 'Critical' : 'At Risk';
 
-    if (disLocation) {
-      disruptionToInsert = {
-        type,
-        severity,
-        location: disLocation,
-        description: `CRITICAL ALERT: TRK-${truck_id} encountered ${type}. Immediate rerouting required. Estimated delay: ${initialDelay}m.`
-      };
+      if (disLocation) {
+        disruptionToInsert = {
+          type,
+          severity,
+          location: disLocation,
+          description: `CRITICAL ALERT: TRK-${truck_id} encountered ${type}. Immediate rerouting required. Estimated delay: ${initialDelay}m.`
+        };
+      }
     }
+  } else if (status !== 'On-Track') {
+    // Manually create disruption for forced demo status
+    disruptionToInsert = {
+      type: forcedType || "Operational Constraint",
+      severity: status === 'Critical' ? 'Critical' : 'High',
+      location: route[Math.floor(route.length * 0.4)],
+      description: `DEMO ALERT: TRK-${truck_id} reported ${forcedType || "Operational Constraint"}.`
+    };
   }
 
   const { data: shipmentData, error: shipmentError } = await supabase

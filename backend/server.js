@@ -239,13 +239,13 @@ app.post('/api/reroute-preview', async (req, res) => {
             distLastMileKm: Math.round(lastMileDist),
             train: assignFreightTrain(h.name, destHubName),
             totalEtaHours: Math.round((railDist/65) + 4),
-            timeSavedHours: Math.round(s.delay/60) + 2,
-            roadCostINR: s.weight * 500,
-            multimodalCostINR: s.weight * 320,
-            costSavingINR: s.weight * 180,
-            roadCO2Kg: s.weight * 45,
-            multimodalCO2Kg: s.weight * 12,
-            co2SavingKg: s.weight * 33
+            timeSavedHours: Math.max(1, Math.round(s.delay/60) + 2 - idx),
+            roadCostINR: Math.round(s.weight * 500),
+            multimodalCostINR: Math.round(s.weight * 320 * (1 + (idx * 0.06))),
+            costSavingINR: Math.round(s.weight * 500) - Math.round(s.weight * 320 * (1 + (idx * 0.06))),
+            roadCO2Kg: Math.round(s.weight * 45),
+            multimodalCO2Kg: Math.round(s.weight * 12 * (1 + (idx * 0.06))),
+            co2SavingKg: Math.round(s.weight * 45) - Math.round(s.weight * 12 * (1 + (idx * 0.06)))
           };
         })
       };

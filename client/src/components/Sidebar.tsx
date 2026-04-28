@@ -61,6 +61,19 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, setFocusedLocation, 
     }
   };
 
+  const handleClearDisruptions = async () => {
+    if (!window.confirm('Clear all active disruption alerts from the feed?')) return;
+    try {
+      const response = await fetch(`${BASE}/api/disruptions`, {
+        method: 'DELETE'
+      });
+      if (!response.ok) throw new Error('Failed to clear disruptions');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to clear disruptions');
+    }
+  };
+
   const [filterModal, setFilterModal] = React.useState<{ title: string, list: Shipment[] } | null>(null);
 
   const activeCount = shipments.length;
@@ -268,12 +281,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, setFocusedLocation, 
             Disruption & Risk Feed
           </h3>
           <div className="flex items-center gap-2">
+            {disruptions.length > 0 && (
+              <button
+                onClick={handleClearDisruptions}
+                className="text-[9px] text-amber-500/50 hover:text-amber-500 font-bold uppercase tracking-widest transition-colors mr-1"
+              >
+                Clear Alerts
+              </button>
+            )}
             {shipments.length > 0 && (
               <button
                 onClick={handleClearAll}
                 className="text-[9px] text-red-400/50 hover:text-red-400 font-bold uppercase tracking-widest transition-colors"
               >
-                Clear All
+                Clear Fleet
               </button>
             )}
             {activeFilter && (

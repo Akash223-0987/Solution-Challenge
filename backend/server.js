@@ -222,6 +222,15 @@ app.get('/api/disruptions', async (req, res) => {
   res.json(data);
 });
 
+app.delete('/api/disruptions', async (req, res) => {
+  const { error } = await supabase.from('disruptions').delete().neq('id', 0); // Delete all
+  if (error) {
+    console.error('❌ Supabase Disruptions Delete Error:', error);
+    return res.status(400).json(error);
+  }
+  res.json({ success: true });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Multimodal Route Optimization (Preview)
 // ─────────────────────────────────────────────────────────────────────────────

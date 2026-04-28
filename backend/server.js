@@ -568,6 +568,18 @@ app.get('/api/weather-news', async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Health / Keep-Alive endpoint  →  used by cron-job.org to prevent Render
+// free-tier cold starts (ping every 14 minutes)
+// ─────────────────────────────────────────────────────────────────────────────
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok', service: 'AetherLog Backend', timestamp: new Date().toISOString() });
+});
+
+app.get('/api/ping', (_req, res) => {
+  res.json({ pong: true, timestamp: new Date().toISOString() });
+});
+
 const PORT = process.env.PORT || 8082;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 AetherLog Gati Shakti Backend on http://localhost:${PORT}`);
